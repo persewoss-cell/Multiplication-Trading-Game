@@ -94,9 +94,14 @@
   .panel.admin{border:2px solid var(--admin);}
 
   .board-table{display:grid;grid-template-columns:repeat(auto-fit,minmax(96px,1fr));gap:8px;}
-  .res-cell{background:var(--ore-soft);border:1.5px solid var(--ore-line);border-radius:12px;padding:10px 6px;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;}
+  .res-cell{position:relative;background:var(--ore-soft);border:1.5px solid var(--ore-line);border-radius:12px;padding:10px 6px;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;}
   .res-cell .rn{font-weight:800;font-size:13px;color:#5f3c0c;display:block;}
   .res-cell .rt{font-family:var(--mono);font-size:17px;font-weight:700;color:var(--ore);white-space:nowrap;}
+  .diff-badge{font-size:10px;font-weight:800;padding:1px 6px;border-radius:999px;line-height:1.5;}
+  .res-cell .diff-badge{position:absolute;top:6px;right:6px;}
+  .diff-easy{background:var(--ok-soft);color:var(--ok);}
+  .diff-medium{background:#fff3d6;color:#9a6b0a;}
+  .diff-hard{background:var(--err-soft);color:var(--err);}
 
   .ctl-row{display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end;}
   .field{display:flex;flex-direction:column;gap:5px;}
@@ -251,8 +256,8 @@ var FIREBASE_CONFIG = {
 function num1to9(){ return 1+Math.floor(Math.random()*9); }
 function randTensRound(){ return num1to9()*10; }               // 몇십 (10~90)
 function randTwoDigitNonRound(){ return num1to9()*10+num1to9(); } // 몇십몇 (11~99, 십의자리·일의자리 모두 0아님)
-function randMultProblem(){
-  var cat=1+Math.floor(Math.random()*7),a,b;
+function randMultProblemForCat(cat){
+  var a,b;
   if(cat===1){ a=randTensRound(); b=num1to9(); }                          // (몇십)×(몇)
   else if(cat===2){ a=randTwoDigitNonRound(); b=num1to9(); }              // (몇십몇)×(몇)
   else if(cat===3){ a=100+Math.floor(Math.random()*900); b=num1to9(); }   // (세 자리 수)×(한 자리 수)
@@ -262,24 +267,41 @@ function randMultProblem(){
   else { a=randTwoDigitNonRound(); b=randTwoDigitNonRound(); }            // (몇십몇)×(몇십몇)
   return {a:a,b:b,answer:a*b};
 }
-function randomUniqueMultProblems(n,avoidList){
+/* 난이도(하/중/상)별 문제 유형 묶음. 숫자가 작고 10배 패턴인 것은 쉬움,
+   두 자리×한 자리는 보통, 세 자리 또는 두 자리×두 자리는 자릿수가 많아져 어려움. */
+var DIFF_LEVELS=["easy","medium","hard"];
+var DIFF_LABEL={easy:"하",medium:"중",hard:"상"};
+var DIFF_CLASS={easy:"diff-easy",medium:"diff-medium",hard:"diff-hard"};
+var DIFF_CATS={easy:[1,4],medium:[2,6],hard:[3,5,7]};
+function randMultProblemForLevel(level){
+  var cats=DIFF_CATS[level]||DIFF_CATS.medium;
+  var p=randMultProblemForCat(cats[Math.floor(Math.random()*cats.length)]);
+  p.level=level; return p;
+}
+function randomUniqueMultProblems(levels,avoidList){
   var exprSeen={},ansSeen={};
   (avoidList||[]).forEach(function(p){ exprSeen[p.a+"x"+p.b]=true; ansSeen[p.answer]=true; });
-  var list=[],tries=0;
-  while(list.length<n && tries<20000){
-    tries++;
-    var p=randMultProblem(),expr=p.a+"x"+p.b;
-    if(exprSeen[expr]||ansSeen[p.answer]) continue;
-    exprSeen[expr]=true; ansSeen[p.answer]=true; list.push(p);
-  }
+  var list=[];
+  levels.forEach(function(level){
+    var tries=0,p;
+    do{ p=randMultProblemForLevel(level); tries++; }
+    while((exprSeen[p.a+"x"+p.b]||ansSeen[p.answer])&&tries<500);
+    exprSeen[p.a+"x"+p.b]=true; ansSeen[p.answer]=true; list.push(p);
+  });
   return list;
 }
+function assignLevels(n){
+  var arr=[]; for(var i=0;i<n;i++) arr.push(DIFF_LEVELS[i%3]);
+  for(var i=arr.length-1;i>0;i--){ var j=Math.floor(Math.random()*(i+1)),t=arr[i]; arr[i]=arr[j]; arr[j]=t; }
+  return arr;
+}
+function nextLevel(level){ return DIFF_LEVELS[(DIFF_LEVELS.indexOf(level)+1+DIFF_LEVELS.length)%DIFF_LEVELS.length]; }
 function defaultResources(){
   var names=["물","밀","모래","목재","과일","목화","철광석","석유"];
   return names.map(function(n,i){ return {id:"r"+(i+1),name:n}; });
 }
 function randomProblemMap(resources){
-  var probs=randomUniqueMultProblems(resources.length),map={};
+  var probs=randomUniqueMultProblems(assignLevels(resources.length)),map={};
   resources.forEach(function(r,i){ map[r.id]=probs[i]; });
   return map;
 }
@@ -591,14 +613,18 @@ function resChipsHTML(resObj){
   game.resources.forEach(function(r){ var n=(resObj&&resObj[r.id])||0; h+='<span class="prod-chip '+catClassByName(r.name)+'">'+esc(r.name)+'<span class="cc">'+n+'</span></span>'; });
   return h+'</div>';
 }
+function diffBadgeHTML(p){
+  var level=p.level||"medium";
+  return '<span class="diff-badge '+(DIFF_CLASS[level]||"diff-medium")+'">'+(DIFF_LABEL[level]||"중")+'</span>';
+}
 function boardHTML(g){
   var h='<div class="panel board"><div class="block-label">자원(광물) 곱셈식</div><div id="retargetAlert"></div><div class="board-table">';
-  game.resources.forEach(function(r){ var p=(g.problems&&g.problems[r.id])||{a:"?",b:"?"}; h+='<div class="res-cell"><span class="rn">'+esc(r.name)+'</span><span class="rt">'+p.a+' × '+p.b+'</span></div>'; });
+  game.resources.forEach(function(r){ var p=(g.problems&&g.problems[r.id])||{a:"?",b:"?"}; h+='<div class="res-cell">'+diffBadgeHTML(p)+'<span class="rn">'+esc(r.name)+'</span><span class="rt">'+p.a+' × '+p.b+'</span></div>'; });
   return h+'</div></div>';
 }
 function problemChipsHTML(g){
   var h='<div class="prod-row">';
-  game.resources.forEach(function(r){ var p=(g.problems&&g.problems[r.id])||{a:"?",b:"?"}; h+='<span class="prod-chip '+catClassByName(r.name)+'">'+esc(r.name)+'<span class="cc">'+p.a+'×'+p.b+'</span></span>'; });
+  game.resources.forEach(function(r){ var p=(g.problems&&g.problems[r.id])||{a:"?",b:"?"}; h+='<span class="prod-chip '+catClassByName(r.name)+'">'+esc(r.name)+' '+p.a+'×'+p.b+diffBadgeHTML(p)+'</span>'; });
   return h+'</div>';
 }
 function miniCardsHTML(obj){
@@ -990,7 +1016,7 @@ function saveSettings(){
         var res={},red={}; newRes.forEach(function(r){ res[r.id]=g.resources[r.id]||0; red[r.id]=(g.redeemed&&g.redeemed[r.id])||0; }); g.resources=res; g.redeemed=red;
         var oldProblems=g.problems||{}, newProblems={}, missing=[];
         newRes.forEach(function(r){ if(oldProblems[r.id]) newProblems[r.id]=oldProblems[r.id]; else missing.push(r); });
-        if(missing.length){ var fresh=randomUniqueMultProblems(missing.length,Object.keys(newProblems).map(function(k){return newProblems[k];})); missing.forEach(function(r,i){ newProblems[r.id]=fresh[i]; }); }
+        if(missing.length){ var fresh=randomUniqueMultProblems(assignLevels(missing.length),Object.keys(newProblems).map(function(k){return newProblems[k];})); missing.forEach(function(r,i){ newProblems[r.id]=fresh[i]; }); }
         g.problems=newProblems;
       });
       data.resources=newRes; data.groupCount=gc; data.nextId=counter;
@@ -1215,7 +1241,8 @@ function doGenerate(){
       gg.resources[match.id]=(gg.resources[match.id]||0)+1;
       gg.problems=gg.problems||{};
       var others=[]; for(var rid in gg.problems){ if(rid!==match.id) others.push(gg.problems[rid]); }
-      gg.problems[match.id]=randomUniqueMultProblems(1,others)[0];
+      var solvedLevel=(gg.problems[match.id]&&gg.problems[match.id].level)||"easy";
+      gg.problems[match.id]=randomUniqueMultProblems([nextLevel(solvedLevel)],others)[0];
       tx.update(gameRef(),{groups:data.groups});
     });
   }).then(function(){ answerInput=""; groupMsg={ok:true,text:"정답! "+match.name+" 1개를 만들었어요. 새로운 곱셈식이 나왔어요."}; renderGroup(); })
