@@ -101,8 +101,10 @@
   .ctl-row{display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end;}
   .field{display:flex;flex-direction:column;gap:5px;}
   .field label{font-size:12.5px;font-weight:700;color:var(--muted);}
-  .diff-weight-row{display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;margin-bottom:18px;}
-  .diff-weight-row .num-in.diffw{width:72px;}
+  .diff-weight-row{display:flex;gap:8px;align-items:center;flex-wrap:nowrap;overflow-x:auto;margin-bottom:8px;padding-bottom:2px;}
+  .diff-weight-row .dwlabel{font-size:13px;font-weight:700;color:var(--muted);flex:none;}
+  .diff-weight-row .num-in.diffw{width:64px;flex:none;}
+  .diff-weight-row .btn{flex:none;white-space:nowrap;}
   .divider{width:1px;align-self:stretch;background:var(--line);margin:0 4px;}
   .hint{color:var(--muted);font-size:13px;margin-top:10px;}
 
@@ -896,13 +898,14 @@ function settingsPanelHTML(){
     '<button class="btn '+(game.hintsEnabled?"ore":"ghost")+' slim" id="toggleHints">힌트 주기: '+(game.hintsEnabled?"켜짐 (입력한 값을 다시 보여줘요)":"꺼짐 (틀렸다고만 알려줘요)")+'</button>'+
     '<p class="hint">"곱셈식 정답 맞히기"에서 정답이 틀렸을 때 학생에게 입력한 값을 다시 보여줄지 정해요. 누르면 모든 태블릿에 바로 반영돼요.</p>'+
     '<div class="block-label" style="margin-top:18px">곱셈식 랜덤 설정</div>'+
-    '<p class="hint" style="margin-top:0">하/중/상 비율을 정하면 그 비율대로 곱셈식이 무작위로 나와요. 정답을 맞혀 새로 나오는 곱셈식도 같은 비율을 따라요. (예: 하를 100으로 하면 쉬운 문제만 계속 나와요. 꼭 합계 100이 아니어도 서로 비율만 맞으면 돼요.)</p>'+
+    '<p class="hint" style="margin-top:0">하/중/상 비율을 정하면 그 비율대로 곱셈식이 무작위로 나와요. 정답을 맞혀 새로 나오는 곱셈식도 같은 비율을 따라요.</p>'+
     '<div class="diff-weight-row">'+
-      '<div class="field"><label>하</label><input class="num-in diffw" id="diffEasy" type="number" min="0" value="'+diffW.easy+'" inputmode="numeric"></div>'+
-      '<div class="field"><label>중</label><input class="num-in diffw" id="diffMedium" type="number" min="0" value="'+diffW.medium+'" inputmode="numeric"></div>'+
-      '<div class="field"><label>상</label><input class="num-in diffw" id="diffHard" type="number" min="0" value="'+diffW.hard+'" inputmode="numeric"></div>'+
+      '<label class="dwlabel">하</label><input class="num-in diffw" id="diffEasy" type="number" min="0" value="'+diffW.easy+'" inputmode="numeric">'+
+      '<label class="dwlabel">중</label><input class="num-in diffw" id="diffMedium" type="number" min="0" value="'+diffW.medium+'" inputmode="numeric">'+
+      '<label class="dwlabel">상</label><input class="num-in diffw" id="diffHard" type="number" min="0" value="'+diffW.hard+'" inputmode="numeric">'+
       '<button class="btn ghost slim" id="applyDiffWeights">적용</button>'+
     '</div>'+
+    '<p class="hint" style="margin-top:0">예: 하를 100으로 하면 쉬운 문제만 계속 나와요. 꼭 합계 100이 아니어도 서로 비율만 맞으면 돼요.</p>'+
     '<div class="settings-grid">'+
     '<div><div class="block-label">자원 목록 편집</div>'+
       '<div id="resEditor">'+resRows+'</div>'+
