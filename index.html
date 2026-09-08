@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>사칙연산 무역 게임</title>
+<title>곱셈 무역 게임</title>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 <style>
@@ -33,7 +33,7 @@
     .btn{min-height:54px;padding:14px 22px;font-size:17px;}
     .btn.slim{min-height:48px;padding:11px 16px;font-size:16px;}
     .num-in{min-height:52px;font-size:19px;}
-    .key{min-height:52px;font-size:21px;}
+    .scratch-canvas{height:280px;}
   }
 
   .btn{border:none;border-radius:11px;padding:12px 18px;font-size:16px;font-weight:800;min-height:48px;background:var(--admin);color:#fff;transition:filter .12s,transform .05s;}
@@ -92,10 +92,10 @@
   .panel{background:var(--panel);border:1.5px solid var(--line);border-radius:16px;padding:18px;margin-bottom:18px;box-shadow:0 3px 12px rgba(28,38,50,.05);}
   .panel.admin{border:2px solid var(--admin);}
 
-  .board-table{display:grid;grid-template-columns:repeat(8,1fr);gap:8px;}
+  .board-table{display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:8px;}
   .res-cell{background:var(--ore-soft);border:1.5px solid var(--ore-line);border-radius:12px;padding:10px 6px;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;}
   .res-cell .rn{font-weight:800;font-size:13px;color:#5f3c0c;display:block;}
-  .res-cell .rt{font-family:var(--mono);font-size:20px;font-weight:700;color:var(--ore);}
+  .res-cell .rt{font-family:var(--mono);font-size:17px;font-weight:700;color:var(--ore);white-space:nowrap;}
 
   .ctl-row{display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end;}
   .field{display:flex;flex-direction:column;gap:5px;}
@@ -109,12 +109,8 @@
   @media(min-width:880px){.settings-grid{grid-template-columns:1.2fr 1fr;}}
   .res-edit-row{display:flex;gap:8px;align-items:center;margin-bottom:8px;}
   .res-edit-row input.rname{flex:1;min-width:0;font-size:16px;padding:9px 11px;border:1.5px solid var(--line);border-radius:9px;}
-  .res-edit-row input.rtarget{width:92px;font-family:var(--mono);font-weight:700;text-align:center;font-size:16px;padding:9px 8px;border:1.5px solid var(--line);border-radius:9px;}
+  .res-edit-row .rexpr{width:100px;font-family:var(--mono);font-weight:700;text-align:center;font-size:16px;padding:9px 4px;flex:none;}
   .res-edit-row .del{background:var(--err-soft);color:var(--err);border:none;border-radius:9px;width:40px;height:40px;font-size:18px;font-weight:800;flex:none;}
-  .weights-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(72px,1fr));gap:9px;}
-  .wcell{display:flex;flex-direction:column;align-items:center;gap:5px;background:#f7f9fc;border:1.5px solid var(--line);border-radius:10px;padding:7px 4px;}
-  .wcell .wg{font-family:var(--mono);font-size:21px;font-weight:800;} .wcell.isnum .wg{color:var(--num);} .wcell.isop .wg{color:var(--op);}
-  .wcell input{width:100%;text-align:center;font-family:var(--mono);font-weight:700;font-size:15px;padding:6px 2px;border:1.5px solid var(--line);border-radius:7px;}
   .save-row{display:flex;gap:10px;margin-top:16px;flex-wrap:wrap;}
   .warn{color:var(--err);font-weight:700;font-size:14px;margin-top:8px;min-height:20px;}
 
@@ -164,12 +160,6 @@
   .gcard .gtop .gn{font-weight:800;font-size:16px;}
   .gcard .gbody{padding:12px;}
 
-  .cards-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:6px;max-width:340px;}
-  .tile{position:relative;aspect-ratio:1/1.05;border-radius:9px;border:1.5px solid;display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-size:16px;font-weight:800;user-select:none;}
-  .tile.num{color:var(--num);background:var(--num-soft);border-color:var(--num-line);}
-  .tile.op{color:var(--op);background:var(--op-soft);border-color:var(--op-line);}
-  .tile .cnt{position:absolute;top:-6px;right:-6px;min-width:18px;height:18px;padding:0 4px;background:var(--ink);color:#fff;border-radius:999px;font-family:var(--sans);font-size:11px;font-weight:800;display:flex;align-items:center;justify-content:center;}
-  .tile.zero{opacity:.28;filter:grayscale(.5);} .tile.zero .cnt{background:#9aa7b6;}
   .mini-label{font-size:12px;font-weight:800;color:var(--muted);margin:0 0 7px;}
 
   /* ---- teacher group-overview compact mode ---- */
@@ -178,21 +168,21 @@
   .groups.compact .gcard .gtop .gn{font-size:13px;}
   .groups.compact .gcard .gbody{padding:8px;}
   .groups.compact .mini-label{font-size:10px;margin:0 0 4px;}
-  .groups.compact .cards-grid{grid-template-columns:repeat(8,1fr);gap:3px;max-width:100%;}
-  .groups.compact .tile{font-size:10px;border-radius:6px;}
-  .groups.compact .tile .cnt{min-width:13px;height:13px;font-size:8px;top:-4px;right:-4px;}
   .groups.compact .prod-row{gap:3px;margin-bottom:3px;}
   .groups.compact .prod-chip{padding:2px 6px;font-size:10px;gap:3px;}
   .groups.compact .prod-chip .cc{font-size:10px;}
   .groups.compact .btn.slim{min-height:32px;padding:5px 9px;font-size:12px;}
 
+  /* ---- 계산 연습장(필기) ---- */
+  .scratch-wrap{position:relative;}
+  .scratch-canvas{width:100%;height:220px;display:block;background:#fff;border:1.5px solid var(--line);border-radius:12px;touch-action:none;cursor:crosshair;}
+  .scratch-tools{display:flex;gap:6px;margin-top:8px;}
+  .stool{width:34px;height:34px;padding:0;border-radius:8px;border:1.5px solid var(--line);background:#fff;font-size:15px;display:flex;align-items:center;justify-content:center;flex:none;}
+  .stool.active{background:var(--admin-soft);border-color:var(--admin);color:var(--admin-dark);}
+
   /* ---- group play ---- */
   .formula-in{width:100%;font-family:var(--mono);font-size:24px;font-weight:700;text-align:center;padding:12px;border:2px solid var(--line);border-radius:12px;letter-spacing:.06em;color:var(--ink);}
   .formula-in:focus{outline:none;border-color:var(--num);}
-  .keypad{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-top:9px;}
-  .key{border:1.5px solid var(--line);background:#fff;border-radius:9px;padding:9px 0;font-family:var(--mono);font-size:19px;font-weight:800;min-height:44px;}
-  .key.n{color:var(--num);} .key.o{color:var(--op);} .key.act{font-family:var(--sans);font-size:13px;color:var(--muted);}
-  .key.clearall{grid-column:1 / -1;font-family:var(--sans);font-size:17px;font-weight:800;color:var(--err);background:var(--err-soft);border-color:var(--err-soft);min-height:52px;}
   .gen-btn{margin-top:10px;width:100%;background:var(--ore);color:#fff;border:none;border-radius:12px;padding:14px;font-size:18px;font-weight:800;min-height:54px;}
   .msg{margin-top:10px;padding:10px 12px;border-radius:10px;font-size:14px;font-weight:600;line-height:1.5;}
   .msg.ok{background:var(--ok-soft);color:var(--ok);} .msg.bad{background:var(--err-soft);color:var(--err);}
@@ -229,8 +219,8 @@
 <body>
 <div class="wrap">
   <div class="pagehead">
-    <h1>사칙연산 무역 게임</h1>
-    <span class="sub">사칙연산으로 자원을 만들고 조합하여 물건을 생산해요!</span>
+    <h1>곱셈 무역 게임</h1>
+    <span class="sub">곱셈으로 자원을 만들고 조합하여 물건을 생산해요!</span>
   </div>
 
   <div id="screen"></div>
@@ -255,33 +245,42 @@ var FIREBASE_CONFIG = {
 };
 
 /* ---------------- 상수 & 파서 (오프라인판과 동일) ---------------- */
-var NUMS=["1","2","3","4","5","6","7","8","9"];
-var OPS=["+","−","×","÷","(",")"]; var ALL=NUMS.concat(OPS);
-
-function emptyCards(scoreCategories){
-  var c={}; ALL.forEach(function(k){ c[k]=0; });
-  (scoreCategories||defaultScoreCategories()).forEach(function(cat){ cat.items.forEach(function(it){ c[it.id]=0; }); });
-  return c;
+/* ---------------- 곱셈식 생성 (2022 개정 3학년 곱셈 범위) ---------------- */
+function num1to9(){ return 1+Math.floor(Math.random()*9); }
+function randTensRound(){ return num1to9()*10; }               // 몇십 (10~90)
+function randTwoDigitNonRound(){ return num1to9()*10+num1to9(); } // 몇십몇 (11~99, 십의자리·일의자리 모두 0아님)
+function randMultProblem(){
+  var cat=1+Math.floor(Math.random()*7),a,b;
+  if(cat===1){ a=randTensRound(); b=num1to9(); }                          // (몇십)×(몇)
+  else if(cat===2){ a=randTwoDigitNonRound(); b=num1to9(); }              // (몇십몇)×(몇)
+  else if(cat===3){ a=100+Math.floor(Math.random()*900); b=num1to9(); }   // (세 자리 수)×(한 자리 수)
+  else if(cat===4){ a=Math.random()<0.5?num1to9():randTwoDigitNonRound(); b=10; } // (몇)×10, (몇십몇)×10
+  else if(cat===5){ a=Math.random()<0.5?randTensRound():randTwoDigitNonRound(); b=randTensRound(); } // (몇십)×(몇십), (몇십몇)×(몇십)
+  else if(cat===6){ a=num1to9(); b=randTwoDigitNonRound(); }              // (몇)×(몇십몇)
+  else { a=randTwoDigitNonRound(); b=randTwoDigitNonRound(); }            // (몇십몇)×(몇십몇)
+  return {a:a,b:b,answer:a*b};
 }
-function defaultWeights(){ var w={}; ALL.forEach(function(k){ w[k]=(k==="+"||k==="−"||k==="×"||k==="÷")?2:1; }); return w; }
-function randomUniqueTargets(n,min,max){
-  var vals=[],seen={},tries=0;
-  while(vals.length<n && tries<5000){
+function randomUniqueMultProblems(n,avoidList){
+  var exprSeen={},ansSeen={};
+  (avoidList||[]).forEach(function(p){ exprSeen[p.a+"x"+p.b]=true; ansSeen[p.answer]=true; });
+  var list=[],tries=0;
+  while(list.length<n && tries<20000){
     tries++;
-    var v=min+Math.floor(Math.random()*(max-min+1));
-    if(!seen[v]){ seen[v]=true; vals.push(v); }
+    var p=randMultProblem(),expr=p.a+"x"+p.b;
+    if(exprSeen[expr]||ansSeen[p.answer]) continue;
+    exprSeen[expr]=true; ansSeen[p.answer]=true; list.push(p);
   }
-  return vals;
+  return list;
 }
 function defaultResources(){
   var names=["물","밀","모래","목재","과일","목화","철광석","석유"];
-  var targets=randomUniqueTargets(names.length,2,90);
-  return names.map(function(n,i){ return {id:"r"+(i+1),name:n,target:targets[i]}; });
+  var probs=randomUniqueMultProblems(names.length);
+  return names.map(function(n,i){ return {id:"r"+(i+1),name:n,a:probs[i].a,b:probs[i].b,answer:probs[i].answer}; });
 }
-function makeGroup(i,resources,products,scoreCategories){
+function makeGroup(i,resources,products){
   var res={},red={}; resources.forEach(function(r){ res[r.id]=0; red[r.id]=0; });
   var prod={}; (products||defaultProducts()).forEach(function(p){ prod[p.id]=0; });
-  return {name:(i+1)+"모둠",cards:emptyCards(scoreCategories),resources:res,redeemed:red,products:prod};
+  return {name:(i+1)+"모둠",resources:res,redeemed:red,products:prod};
 }
 function defaultProducts(){
   return [
@@ -316,49 +315,9 @@ function defaultScoreCategories(){
 function defaultGameData(groupCount){
   var gc=(groupCount>=1&&groupCount<=12)?groupCount:6;
   var resources=defaultResources(); var products=defaultProducts(); var scoreCategories=defaultScoreCategories();
-  var groups=[]; for(var i=0;i<gc;i++) groups.push(makeGroup(i,resources,products,scoreCategories));
-  return {createdAt:Date.now(),groupCount:gc,nextId:resources.length+1,resources:resources,weights:defaultWeights(),groups:groups,hintsEnabled:false,scoreEnabled:false,scoreEditEnabled:true,scoreCategories:scoreCategories,products:products,retargetMinutes:0,retargetNextAt:null};
+  var groups=[]; for(var i=0;i<gc;i++) groups.push(makeGroup(i,resources,products));
+  return {createdAt:Date.now(),groupCount:gc,nextId:resources.length+1,resources:resources,groups:groups,hintsEnabled:false,scoreEnabled:false,scoreEditEnabled:true,scoreCategories:scoreCategories,products:products,retargetMinutes:0,retargetNextAt:null};
 }
-
-function normalize(str){
-  return String(str).replace(/\s+/g,"").replace(/[*xX✕✖＊]/g,"×").replace(/[\/÷]/g,"÷").replace(/[-−–—ー]/g,"−").replace(/[+＋]/g,"+").replace(/[（]/g,"(").replace(/[）]/g,")");
-}
-function tokenize(str){
-  var tokens=[],chars=str.split(""),i;
-  for(i=0;i<chars.length;i++){ var ch=chars[i];
-    if(ch>="1"&&ch<="9") tokens.push({t:"num",v:+ch,card:ch});
-    else if(ch==="0") return {error:"‘0’ 카드는 없어요. 숫자 카드는 1~9만 사용할 수 있어요."};
-    else if(ch==="+"||ch==="−"||ch==="×"||ch==="÷") tokens.push({t:"op",v:ch,card:ch});
-    else if(ch==="(") tokens.push({t:"lp",card:"("});
-    else if(ch===")") tokens.push({t:"rp",card:")"});
-    else return {error:"사용할 수 없는 문자예요: ‘"+ch+"’"};
-  }
-  return {tokens:tokens};
-}
-function countCards(tokens){ var c={}; tokens.forEach(function(tk){ if(tk.card) c[tk.card]=(c[tk.card]||0)+1; }); return c; }
-var PREC={"+":1,"−":1,"×":2,"÷":2};
-function evaluate(tokens){
-  var out=[],ops=[],i,top;
-  for(i=0;i<tokens.length;i++){ var tk=tokens[i];
-    if(tk.t==="num") out.push(tk);
-    else if(tk.t==="op"){ while(ops.length){ top=ops[ops.length-1]; if(top.t==="op"&&PREC[top.v]>=PREC[tk.v]) out.push(ops.pop()); else break; } ops.push(tk); }
-    else if(tk.t==="lp") ops.push(tk);
-    else if(tk.t==="rp"){ while(ops.length&&ops[ops.length-1].t!=="lp") out.push(ops.pop()); if(!ops.length) return {error:"괄호 짝이 맞지 않아요. ‘)’에 맞는 ‘(’가 없어요."}; ops.pop(); }
-  }
-  while(ops.length){ top=ops.pop(); if(top.t==="lp") return {error:"괄호 짝이 맞지 않아요. ‘(’에 맞는 ‘)’가 없어요."}; out.push(top); }
-  var st=[];
-  for(i=0;i<out.length;i++){ var o=out[i];
-    if(o.t==="num") st.push(o.v);
-    else{ if(st.length<2) return {error:"수식 형태가 올바르지 않아요. 연산자 위치를 확인해 주세요."};
-      var b=st.pop(),a=st.pop(),r;
-      if(o.v==="+") r=a+b; else if(o.v==="−") r=a-b; else if(o.v==="×") r=a*b;
-      else{ if(b===0) return {error:"0으로 나눌 수 없어요."}; r=a/b; } st.push(r); }
-  }
-  if(st.length!==1) return {error:"수식 형태가 올바르지 않아요. 숫자와 연산자 개수를 확인해 주세요."};
-  return {value:st[0]};
-}
-function pretty(v){ return String(Math.round(v*1e6)/1e6); }
-function pickCard(weights){ var total=0,i; for(i=0;i<ALL.length;i++) total+=Math.max(0,weights[ALL[i]]||0); if(total<=0) return null; var r=Math.random()*total; for(i=0;i<ALL.length;i++){ r-=Math.max(0,weights[ALL[i]]||0); if(r<0) return ALL[i]; } return ALL[ALL.length-1]; }
 
 /* ---------------- 전역 상태 ---------------- */
 var db=null, ready=false;
@@ -366,7 +325,8 @@ var role=null, code=null, myIdx=null;   // 이 기기의 정체성
 var game=null, trades=[];               // 실시간 스냅샷
 var unsubGame=null, unsubTrades=null;
 var rooms=[], unsubRooms=null;          // 랜딩화면 방 목록
-var formula="", groupMsg=null, tradeMsg=null, productMsg=null, settingsOpen=false, scoreSettingsOpen=false, recipeSettingsOpen=false, connected=false;
+var answerInput="", groupMsg=null, tradeMsg=null, productMsg=null, settingsOpen=false, scoreSettingsOpen=false, recipeSettingsOpen=false, connected=false;
+var scratchStrokes=[], scratchRedo=[], scratchDrawing=false, scratchCurrent=null, scratchMode="pen";
 var SESSION_KEY="trade-online-session";
 
 /* ---------------- 알림(메시지) 3초 후 자동 사라짐 ---------------- */
@@ -408,8 +368,8 @@ function checkAutoRetarget(){
     return tx.get(gameRef()).then(function(snap){
       var data=snap.data();
       if(!data||!(data.retargetMinutes>0)||!data.retargetNextAt||Date.now()<data.retargetNextAt) return;
-      var targets=randomUniqueTargets(data.resources.length,2,90);
-      var newRes=data.resources.map(function(r,i){ return {id:r.id,name:r.name,target:targets[i]}; });
+      var probs=randomUniqueMultProblems(data.resources.length);
+      var newRes=data.resources.map(function(r,i){ return {id:r.id,name:r.name,a:probs[i].a,b:probs[i].b,answer:probs[i].answer}; });
       tx.update(gameRef(),{resources:newRes,retargetNextAt:Date.now()+data.retargetMinutes*60000});
     });
   }).catch(function(){});
@@ -437,9 +397,9 @@ function tickRetargetCountdown(){
   if(!active){ alertEl.innerHTML=""; return; }
   var remain=game.retargetNextAt-Date.now();
   if(remain>0&&remain<=10000){
-    alertEl.innerHTML='<div class="msg bad" style="margin:0 0 12px">⚠ '+Math.ceil(remain/1000)+'초 후 목표 숫자가 재설정돼요!</div>';
+    alertEl.innerHTML='<div class="msg bad" style="margin:0 0 12px">⚠ '+Math.ceil(remain/1000)+'초 후 곱셈식이 재설정돼요!</div>';
   } else if(remain>10000&&Date.now()<retargetFlashUntil){
-    alertEl.innerHTML='<div class="msg ok" style="margin:0 0 12px">'+game.retargetMinutes+'분 뒤 목표 숫자가 재설정돼요.</div>';
+    alertEl.innerHTML='<div class="msg ok" style="margin:0 0 12px">'+game.retargetMinutes+'분 뒤 곱셈식이 재설정돼요.</div>';
   } else {
     alertEl.innerHTML="";
   }
@@ -468,7 +428,7 @@ function subscribe(){
   }, function(){});
   saveSession();
 }
-function leave(){ if(unsubGame) unsubGame(); if(unsubTrades) unsubTrades(); unsubGame=unsubTrades=null; role=code=myIdx=null; game=null; trades=[]; formula=""; groupMsg=tradeMsg=productMsg=null; clearAllMsgTimers(); clearSession(); renderLanding(); }
+function leave(){ if(unsubGame) unsubGame(); if(unsubTrades) unsubTrades(); unsubGame=unsubTrades=null; role=code=myIdx=null; game=null; trades=[]; answerInput=""; groupMsg=tradeMsg=productMsg=null; clearAllMsgTimers(); clearSession(); renderLanding(); }
 
 /* ---------------- 랜딩 ---------------- */
 function genCode(){ var s=""; for(var i=0;i<4;i++) s+=Math.floor(Math.random()*10); return s; }
@@ -606,12 +566,6 @@ function topbar(title){
     '<span class="conn"><span class="dot '+(connected?"on":"off")+'"></span>'+(connected?"연결됨":"연결 끊김")+'</span>'+
     '<div class="spacer"></div><button class="btn ghost slim" id="leaveBtn">나가기</button></div>';
 }
-function cardsGridHTML(cardsObj){
-  var h='<div class="cards-grid">';
-  ALL.forEach(function(k){ var isNum=NUMS.indexOf(k)>=0,n=(cardsObj&&cardsObj[k])||0;
-    h+='<div class="tile '+(isNum?"num":"op")+(n===0?" zero":"")+'"><span>'+esc(k)+'</span><span class="cnt">'+n+'</span></div>'; });
-  return h+'</div>';
-}
 function catClassByName(rname){
   var found=null;
   (game.scoreCategories||defaultScoreCategories()).forEach(function(cat,ci){
@@ -625,8 +579,8 @@ function resChipsHTML(resObj){
   return h+'</div>';
 }
 function boardHTML(){
-  var h='<div class="panel board"><div class="block-label">자원(광물) 목표 숫자</div><div id="retargetAlert"></div><div class="board-table">';
-  game.resources.forEach(function(r){ h+='<div class="res-cell"><span class="rn">'+esc(r.name)+'</span><span class="rt">'+r.target+'</span></div>'; });
+  var h='<div class="panel board"><div class="block-label">자원(광물) 곱셈식</div><div id="retargetAlert"></div><div class="board-table">';
+  game.resources.forEach(function(r){ h+='<div class="res-cell"><span class="rn">'+esc(r.name)+'</span><span class="rt">'+r.a+' × '+r.b+'</span></div>'; });
   return h+'</div></div>';
 }
 function miniCardsHTML(obj){
@@ -638,7 +592,6 @@ function allScoreCardItems(){
   var out=[]; (game.scoreCategories||defaultScoreCategories()).forEach(function(cat,ci){ cat.items.forEach(function(it){ out.push({id:it.id,name:it.name,catIdx:ci}); }); }); return out;
 }
 function cardDisplayName(k){
-  if(NUMS.indexOf(k)>=0||OPS.indexOf(k)>=0) return k;
   var found=null; allScoreCardItems().forEach(function(it){ if(it.id===k) found=it.name; });
   if(found) return found;
   var rf=null; (game.resources||[]).forEach(function(r){ if(r.id===k) rf=r.name; });
@@ -647,7 +600,6 @@ function cardDisplayName(k){
   return pf||k;
 }
 function cardCatClass(k){
-  if(NUMS.indexOf(k)>=0||OPS.indexOf(k)>=0) return "muted";
   var found=null; allScoreCardItems().forEach(function(it){ if(it.id===k) found="sc"+((it.catIdx%4)+1); });
   if(found) return found;
   var rr=null; (game.resources||[]).forEach(function(r){ if(r.id===k) rr=catClassByName(r.name); });
@@ -724,22 +676,12 @@ function renderTeacher(){
   // 관리자 패널
   h+=boardHTML();
   h+='<div class="panel admin">'+
-     '<div class="ctl-row"><div style="font-weight:800;font-size:18px;margin-right:auto">카드 배분 <span style="font-weight:600;color:var(--muted);font-size:14px">· 설정된 가중치에 따라 랜덤 배분</span></div>'+
+     '<div class="ctl-row"><div style="font-weight:800;font-size:18px;margin-right:auto">게임 관리</div>'+
         '<button class="btn ghost slim" id="tSettings">⚙ 설정</button>'+
         '<button class="btn ghost slim" id="tRecipeSettings">🔧 교환조건</button>'+
         '<button class="btn ghost slim" id="tScoreSettings">🏆 점수 계산</button>'+
-        '<button class="btn danger slim" id="tResetCards">카드·자원 초기화</button>'+
+        '<button class="btn danger slim" id="tResetCards">자원 초기화</button>'+
         '<button class="btn danger slim" id="tDelete">게임 삭제</button></div>'+
-     '<div class="ctl-row" style="margin-top:14px">'+
-        '<div class="field"><label>모둠 선택</label><select class="num-in" id="distGroup">'+
-          game.groups.map(function(g,i){return '<option value="'+i+'">'+esc(g.name)+'</option>';}).join("")+'</select></div>'+
-        '<div class="field"><label>장수</label><input class="num-in" id="distN" type="number" min="1" value="5" inputmode="numeric"></div>'+
-        '<button class="btn" id="distOne">이 모둠에 배분</button>'+
-        '<div class="divider"></div>'+
-        '<div class="field"><label>모든 모둠에</label><input class="num-in" id="distAllN" type="number" min="1" value="5" inputmode="numeric"></div>'+
-        '<button class="btn ore" id="distAll">전체 모둠에 배분</button>'+
-     '</div>'+
-     '<p class="hint">모든 기기에 실시간 반영돼요.</p>'+
      settingsPanelHTML()+
      '</div>';
 
@@ -780,8 +722,7 @@ function renderTeacher(){
     var redeemedObj=g.redeemed||{};
     var pendingTotal=game.resources.reduce(function(sum,r){ return sum+(g.resources[r.id]||0); },0);
     h+='<div class="gcard"><div class="gtop"><span class="badge">'+(i+1)+'</span><span class="gn">'+esc(g.name)+'</span></div>'+
-       '<div class="gbody"><p class="mini-label">보유 카드</p>'+cardsGridHTML(g.cards)+
-       '<p class="mini-label" style="margin-top:6px">생성한 자원</p>'+resChipsHTML(g.resources)+
+       '<div class="gbody"><p class="mini-label">생성한 자원</p>'+resChipsHTML(g.resources)+
        '<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:6px">'+
          '<p class="mini-label" style="margin:0">실물 카드 교환 완료</p>'+
          (pendingTotal>0?'<button class="btn ore slim" data-redeem="'+i+'">교환 확인 · 대기 '+pendingTotal+'개</button>':'')+
@@ -799,8 +740,6 @@ function renderTeacher(){
   $("tSettings").onclick=function(){ settingsOpen=!settingsOpen; renderTeacher(); };
   $("tRecipeSettings").onclick=function(){ recipeSettingsOpen=!recipeSettingsOpen; renderTeacher(); };
   $("tScoreSettings").onclick=function(){ scoreSettingsOpen=!scoreSettingsOpen; renderTeacher(); };
-  $("distOne").onclick=function(){ var i=+$("distGroup").value,n=+$("distN").value; if(!(n>=1))return alert("장수를 1 이상으로."); doDistribute(i,n); };
-  $("distAll").onclick=function(){ var n=+$("distAllN").value; if(!(n>=1))return alert("장수를 1 이상으로."); doDistribute("all",n); };
   $("tResetCards").onclick=doResetCards;
   $("tDelete").onclick=doDeleteGame;
   Array.prototype.forEach.call(s.querySelectorAll("[data-acc]"),function(b){ b.onclick=function(){ acceptTrade(b.dataset.acc); }; });
@@ -947,32 +886,30 @@ function saveRecipeSettings(){
 function settingsPanelHTML(){
   if(!settingsOpen) return '';
   var resRows=game.resources.map(function(r){
-    return '<div class="res-edit-row" data-id="'+esc(r.id)+'"><input class="rname" value="'+esc(r.name)+'" placeholder="자원 이름"><input class="rtarget" type="number" value="'+r.target+'" inputmode="numeric" placeholder="목표"><button class="del" type="button">×</button></div>';
-  }).join("");
-  var wCells=ALL.map(function(k){ var isNum=NUMS.indexOf(k)>=0;
-    return '<div class="wcell '+(isNum?"isnum":"isop")+'"><span class="wg">'+esc(k)+'</span><input type="number" min="0" step="1" data-card="'+esc(k)+'" value="'+(game.weights[k]!=null?game.weights[k]:1)+'" inputmode="numeric"></div>';
+    return '<div class="res-edit-row" data-id="'+esc(r.id)+'" data-a="'+r.a+'" data-b="'+r.b+'">'+
+      '<input class="rname" value="'+esc(r.name)+'" placeholder="자원 이름">'+
+      '<span class="rexpr">'+r.a+' × '+r.b+'</span>'+
+      '<button class="del" type="button">×</button></div>';
   }).join("");
   return '<div class="settings open">'+
     '<div class="block-label" style="margin-top:0">힌트 설정</div>'+
-    '<button class="btn '+(game.hintsEnabled?"ore":"ghost")+' slim" id="toggleHints">힌트 주기: '+(game.hintsEnabled?"켜짐 (계산 값을 보여줘요)":"꺼짐 (틀렸다고만 알려줘요)")+'</button>'+
-    '<p class="hint">"수식으로 자원 만들기"에서 계산이 틀렸을 때 학생에게 실제 계산 값을 보여줄지 정해요. 누르면 모든 태블릿에 바로 반영돼요.</p>'+
+    '<button class="btn '+(game.hintsEnabled?"ore":"ghost")+' slim" id="toggleHints">힌트 주기: '+(game.hintsEnabled?"켜짐 (입력한 값을 다시 보여줘요)":"꺼짐 (틀렸다고만 알려줘요)")+'</button>'+
+    '<p class="hint">"곱셈식 정답 맞히기"에서 정답이 틀렸을 때 학생에게 입력한 값을 다시 보여줄지 정해요. 누르면 모든 태블릿에 바로 반영돼요.</p>'+
     '<div class="settings-grid">'+
-    '<div><div class="block-label">자원 목록 편집 <span style="font-weight:600;color:var(--muted)">· 목표 숫자는 서로 달라야 해요</span></div>'+
+    '<div><div class="block-label">자원 목록 편집 <span style="font-weight:600;color:var(--muted)">· 곱셈식과 답은 서로 달라야 해요</span></div>'+
       '<div id="resEditor">'+resRows+'</div>'+
       '<div style="display:flex;gap:6px;flex-wrap:nowrap;align-items:center;margin-top:6px;overflow-x:auto;padding-bottom:2px">'+
         '<button class="btn ghost slim" style="flex:none;white-space:nowrap" id="addRes">＋ 자원 추가</button>'+
-        '<button class="btn ghost slim" style="flex:none;white-space:nowrap" id="randomizeTargets">🎲 목표 숫자 무작위 재설정</button>'+
+        '<button class="btn ghost slim" style="flex:none;white-space:nowrap" id="randomizeProblems">🎲 곱셈식 무작위 재설정</button>'+
         '<div class="divider" style="flex:none"></div>'+
         '<span class="hint" style="margin:0;flex:none;white-space:nowrap">주기적 재설정</span>'+
         '<input class="num-in" id="retargetMinutes" type="number" min="1" value="'+(game.retargetMinutes>0?game.retargetMinutes:10)+'" inputmode="numeric" style="width:52px;flex:none;padding:6px">'+
         '<span class="hint" style="margin:0;flex:none;white-space:nowrap">분마다</span>'+
         '<button class="btn '+(game.retargetMinutes>0?"ore":"ghost")+' slim" style="flex:none;white-space:nowrap" id="toggleRetarget">'+(game.retargetMinutes>0?"끄기":"켜기")+'</button>'+
       '</div>'+
-      (game.retargetMinutes>0?'<p class="hint">'+game.retargetMinutes+'분마다 목표 숫자를 자동으로 재설정하고 저장해요(교사 화면이 열려 있어야 해요). 다음 재설정까지: <span id="retargetCountdown">계산 중…</span></p>':'')+
+      (game.retargetMinutes>0?'<p class="hint">'+game.retargetMinutes+'분마다 곱셈식을 자동으로 재설정하고 저장해요(교사 화면이 열려 있어야 해요). 다음 재설정까지: <span id="retargetCountdown">계산 중…</span></p>':'')+
       '</div>'+
-    '<div><div class="block-label">모둠 수</div><div class="ctl-row" style="margin-bottom:20px"><input class="num-in" id="setGroupCount" type="number" min="1" max="12" value="'+game.groupCount+'" inputmode="numeric"><span class="hint" style="margin:0;align-self:center">1 ~ 12개</span></div>'+
-      '<div class="block-label">배분 비율(가중치)</div><div class="weights-grid" id="weightsGrid">'+wCells+'</div>'+
-      '<button class="btn ghost slim" id="weightsReset" style="margin-top:10px">비율 모두 1로</button></div>'+
+    '<div><div class="block-label">모둠 수</div><div class="ctl-row" style="margin-bottom:20px"><input class="num-in" id="setGroupCount" type="number" min="1" max="12" value="'+game.groupCount+'" inputmode="numeric"><span class="hint" style="margin:0;align-self:center">1 ~ 12개</span></div></div>'+
     '</div><div class="warn" id="settingsWarn"></div>'+
     '<div class="save-row"><button class="btn" id="saveSettings">설정 저장</button><button class="btn ghost" id="cancelSettings">닫기</button></div></div>';
 }
@@ -982,18 +919,19 @@ function wireSettings(){
   };
   Array.prototype.forEach.call($("resEditor").querySelectorAll(".del"),function(b){ b.onclick=function(){ b.closest(".res-edit-row").remove(); }; });
   $("addRes").onclick=function(){
-    var div=document.createElement("div"); div.className="res-edit-row"; div.dataset.id="new"+Date.now()+Math.floor(Math.random()*1000);
-    div.innerHTML='<input class="rname" placeholder="자원 이름"><input class="rtarget" type="number" inputmode="numeric" placeholder="목표"><button class="del" type="button">×</button>';
+    var avoid=[]; Array.prototype.forEach.call($("resEditor").querySelectorAll(".res-edit-row"),function(row){ avoid.push({a:Number(row.dataset.a),b:Number(row.dataset.b),answer:Number(row.dataset.a)*Number(row.dataset.b)}); });
+    var p=randomUniqueMultProblems(1,avoid)[0];
+    var div=document.createElement("div"); div.className="res-edit-row"; div.dataset.id="new"+Date.now()+Math.floor(Math.random()*1000); div.dataset.a=p.a; div.dataset.b=p.b;
+    div.innerHTML='<input class="rname" placeholder="자원 이름"><span class="rexpr">'+p.a+' × '+p.b+'</span><button class="del" type="button">×</button>';
     div.querySelector(".del").onclick=function(){ div.remove(); };
     $("resEditor").appendChild(div);
   };
-  $("randomizeTargets").onclick=function(){
+  $("randomizeProblems").onclick=function(){
     var rows=$("resEditor").querySelectorAll(".res-edit-row");
     if(!rows.length) return;
-    var targets=randomUniqueTargets(rows.length,2,90);
-    Array.prototype.forEach.call(rows,function(row,i){ row.querySelector(".rtarget").value=targets[i]; });
+    var probs=randomUniqueMultProblems(rows.length);
+    Array.prototype.forEach.call(rows,function(row,i){ row.dataset.a=probs[i].a; row.dataset.b=probs[i].b; row.querySelector(".rexpr").textContent=probs[i].a+" × "+probs[i].b; });
   };
-  $("weightsReset").onclick=function(){ Array.prototype.forEach.call($("weightsGrid").querySelectorAll("input"),function(i){i.value=1;}); };
   $("toggleRetarget").onclick=function(){
     if(game.retargetMinutes>0){
       gameRef().update({retargetMinutes:0,retargetNextAt:null}).catch(function(){ alert("주기적 재설정 변경에 실패했어요."); });
@@ -1008,54 +946,38 @@ function wireSettings(){
 }
 
 /* ---------------- 교사 액션 ---------------- */
-function doDistribute(idxOrAll,n){
-  db.runTransaction(function(tx){
-    return tx.get(gameRef()).then(function(snap){
-      var data=snap.data(); var targets=(idxOrAll==="all")?data.groups.map(function(_,i){return i;}):[idxOrAll];
-      var any=false;
-      targets.forEach(function(i){ for(var c=0;c<n;c++){ var card=pickCard(data.weights); if(card){ data.groups[i].cards[card]++; any=true; } } });
-      if(!any) throw new Error("NOWEIGHT");
-      tx.update(gameRef(),{groups:data.groups});
-    });
-  }).catch(function(e){ if(String(e.message).indexOf("NOWEIGHT")>=0) alert("배분 비율이 모두 0이에요. 설정에서 조절해 주세요."); else alert("배분에 실패했어요. 다시 시도해 주세요."); });
-}
 function saveSettings(){
   var warn=$("settingsWarn"); warn.textContent="";
   var gc=parseInt($("setGroupCount").value,10);
   if(isNaN(gc)||gc<1||gc>12){ warn.textContent="모둠 수는 1~12 사이로 입력해 주세요."; return; }
-  var rows=$("resEditor").querySelectorAll(".res-edit-row"), newRes=[], seen={}, ok=true, msg="", counter=(game.nextId||1);
+  var rows=$("resEditor").querySelectorAll(".res-edit-row"), newRes=[], ok=true, msg="", counter=(game.nextId||1);
   Array.prototype.forEach.call(rows,function(row){
-    var name=row.querySelector(".rname").value.trim(), tRaw=row.querySelector(".rtarget").value.trim();
-    if(name===""&&tRaw==="") return;
+    var name=row.querySelector(".rname").value.trim();
     if(name===""){ ok=false; msg="자원 이름을 비워둘 수 없어요."; return; }
-    if(tRaw===""){ ok=false; msg="‘"+name+"’의 목표 숫자를 입력해 주세요."; return; }
-    var tv=Number(tRaw); if(isNaN(tv)){ ok=false; msg="‘"+name+"’의 목표 숫자가 숫자가 아니에요."; return; }
-    if(seen[String(tv)]){ ok=false; msg="목표 숫자가 중복됐어요: "+tv; return; } seen[String(tv)]=true;
     var id=row.dataset.id; if(id.indexOf("new")===0){ id="r"+(counter++); }
-    newRes.push({id:id,name:name,target:tv});
+    var a=Number(row.dataset.a),b=Number(row.dataset.b);
+    newRes.push({id:id,name:name,a:a,b:b,answer:a*b});
   });
   if(!ok){ warn.textContent=msg; return; }
   if(!newRes.length){ warn.textContent="자원이 최소 1개는 있어야 해요."; return; }
-  var newW={}; Array.prototype.forEach.call($("weightsGrid").querySelectorAll("input"),function(i){ var v=Number(i.value); if(isNaN(v)||v<0)v=0; newW[i.dataset.card]=v; });
 
   db.runTransaction(function(tx){
     return tx.get(gameRef()).then(function(snap){
       var data=snap.data();
-      if(gc<data.groups.length){ if(!confirm("모둠 수를 "+data.groups.length+"→"+gc+"로 줄이면 마지막 모둠들의 카드·자원이 삭제돼요. 진행할까요?")) throw new Error("CANCEL"); data.groups.length=gc; }
-      else { while(data.groups.length<gc) data.groups.push(makeGroup(data.groups.length,newRes,data.products||defaultProducts(),data.scoreCategories||defaultScoreCategories())); }
+      if(gc<data.groups.length){ if(!confirm("모둠 수를 "+data.groups.length+"→"+gc+"로 줄이면 마지막 모둠들의 자원이 삭제돼요. 진행할까요?")) throw new Error("CANCEL"); data.groups.length=gc; }
+      else { while(data.groups.length<gc) data.groups.push(makeGroup(data.groups.length,newRes,data.products||defaultProducts())); }
       data.groups.forEach(function(g){ var res={},red={}; newRes.forEach(function(r){ res[r.id]=g.resources[r.id]||0; red[r.id]=(g.redeemed&&g.redeemed[r.id])||0; }); g.resources=res; g.redeemed=red; });
-      data.resources=newRes; data.weights=newW; data.groupCount=gc; data.nextId=counter;
-      tx.update(gameRef(),{groups:data.groups,resources:newRes,weights:newW,groupCount:gc,nextId:counter});
+      data.resources=newRes; data.groupCount=gc; data.nextId=counter;
+      tx.update(gameRef(),{groups:data.groups,resources:newRes,groupCount:gc,nextId:counter});
     });
   }).then(function(){ settingsOpen=false; renderTeacher(); }).catch(function(e){ if(String(e.message).indexOf("CANCEL")<0) alert("설정 저장에 실패했어요."); });
 }
 function doResetCards(){
-  if(!confirm("모든 모둠의 카드·자원을 0으로 되돌릴까요?(자원 목록·비율 설정은 유지)")) return;
+  if(!confirm("모든 모둠의 자원 생성 현황을 0으로 되돌릴까요?(자원 목록 설정은 유지)")) return;
   db.runTransaction(function(tx){
     return tx.get(gameRef()).then(function(snap){
       var data=snap.data();
       data.groups.forEach(function(g){
-        g.cards=emptyCards(data.scoreCategories||defaultScoreCategories());
         var res={},red={}; data.resources.forEach(function(r){res[r.id]=0; red[r.id]=0;}); g.resources=res; g.redeemed=red;
         var prod={}; (data.products||defaultProducts()).forEach(function(p){ prod[p.id]=0; }); g.products=prod;
       });
@@ -1087,8 +1009,15 @@ function renderGroup(){
 
   h+='<div class="group-grid">';
 
-  // 내 카드 + 자원 + 실물 카드 교환 + 생산품 카드 생성
-  h+='<div class="panel"><div class="block-label" style="justify-content:space-between"><span>우리 모둠 카드</span></div>'+cardsGridHTML(g.cards)+
+  // 필기 연습장 + 자원 + 실물 카드 교환 + 생산품 카드 생성
+  h+='<div class="panel"><div class="block-label" style="justify-content:space-between"><span>계산 연습장</span></div>'+
+     '<div class="scratch-wrap"><canvas id="scratchCanvas" class="scratch-canvas"></canvas></div>'+
+     '<div class="scratch-tools">'+
+       '<button type="button" class="stool" id="scUndo" title="실행 취소">↩</button>'+
+       '<button type="button" class="stool" id="scRedo" title="다시 실행">↪</button>'+
+       '<button type="button" class="stool" id="scErase" title="지우개">🧹</button>'+
+       '<button type="button" class="stool" id="scClear" title="전체 지우기">🗑</button>'+
+     '</div>'+
      '<p class="mini-label" style="margin-top:14px">생성한 자원</p>'+resChipsHTML(g.resources)+
      '<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:14px">'+
        '<p class="mini-label" style="margin:0">실물 카드 교환 완료</p>'+
@@ -1098,11 +1027,10 @@ function renderGroup(){
      '<p class="mini-label" style="margin-top:16px">생산품 카드 생성</p>'+productChipsHTML(g.products)+
      '</div>';
 
-  // 수식으로 자원 만들기
-  h+='<div class="panel"><div class="block-label">수식으로 자원 만들기</div>'+
-     '<p class="hint" style="margin-top:0">사칙연산 <b>+, −, ×, ÷</b> 를 모두 한 번씩은 사용해서 만든 식이어야 해요. 괄호 <b>( )</b> 는 써도 되고 안 써도 돼요. 계산 결과가 어떤 자원의 목표 숫자와 정확히 같으면 그 자원이 만들어져요.</p>'+
-     '<input class="formula-in" id="fIn" type="text" inputmode="none" readonly placeholder="예)  (3+2)×4÷2−1" value="'+esc(formula)+'">'+
-     '<div class="keypad" id="keypad"></div>'+
+  // 곱셈식 정답 맞히기
+  h+='<div class="panel"><div class="block-label">곱셈식 정답 맞히기</div>'+
+     '<p class="hint" style="margin-top:0">위 자원(광물)의 곱셈식 중 하나를 계산해서 정답을 입력하세요. 정답이 어떤 자원의 곱셈식 답과 정확히 같으면 그 자원이 만들어지고, 그 자원의 곱셈식은 새 문제로 바뀌어요.</p>'+
+     '<input class="formula-in" id="ansIn" type="number" inputmode="numeric" placeholder="정답 입력" value="'+esc(answerInput)+'">'+
      '<button class="gen-btn" id="genBtn">자원 생성</button>'+
      (groupMsg?'<div class="msg '+(groupMsg.ok?"ok":"bad")+'">'+esc(groupMsg.text)+'</div>':'')+
      '</div>';
@@ -1157,26 +1085,10 @@ function renderGroup(){
   wireProductChips(s);
 
   $("leaveBtn").onclick=leave;
-  var fIn=$("fIn");
-  fIn.oninput=function(){ formula=fIn.value; };
-  var pad=$("keypad");
-  var clearAll=document.createElement("button"); clearAll.type="button"; clearAll.className="key clearall"; clearAll.textContent="모두 지우기";
-  clearAll.onclick=function(){ fIn.value=""; formula=""; fIn.focus(); };
-  pad.appendChild(clearAll);
-  var KEYPAD_ROWS=[
-    ["BACK","(",")","+"],
-    ["7","8","9","−"],
-    ["4","5","6","×"],
-    ["1","2","3","÷"]
-  ];
-  KEYPAD_ROWS.forEach(function(row){
-    row.forEach(function(k){
-      var b=document.createElement("button"); b.type="button";
-      if(k==="BACK"){ b.className="key act"; b.textContent="⌫"; b.onclick=function(){ fIn.value=fIn.value.slice(0,-1); formula=fIn.value; fIn.focus(); }; }
-      else{ b.className="key "+(NUMS.indexOf(k)>=0?"n":"o"); b.textContent=k; b.onclick=function(){ fIn.value+=k; formula=fIn.value; fIn.focus(); }; }
-      pad.appendChild(b);
-    });
-  });
+  var aIn=$("ansIn");
+  aIn.oninput=function(){ answerInput=aIn.value; };
+  aIn.onkeydown=function(e){ if(e.key==="Enter"){ e.preventDefault(); doGenerate(); } };
+  setupScratchCanvas();
 
   $("genBtn").onclick=doGenerate;
   if($("redeemBtn")) $("redeemBtn").onclick=function(){ doRedeemGroup(myIdx); };
@@ -1188,35 +1100,92 @@ function renderGroup(){
   Array.prototype.forEach.call(s.querySelectorAll("[data-cancel]"),function(b){ b.onclick=function(){ setTradeStatus(b.dataset.cancel,"cancelled"); }; });
 }
 
+/* ---------------- 계산 연습장(필기) ---------------- */
+function scratchKey(){ return "tg-scratch-"+code+"-"+myIdx; }
+function loadScratch(){
+  try{ var raw=localStorage.getItem(scratchKey()); scratchStrokes=raw?JSON.parse(raw):[]; }catch(e){ scratchStrokes=[]; }
+  scratchRedo=[];
+}
+function saveScratch(){ try{ localStorage.setItem(scratchKey(),JSON.stringify(scratchStrokes)); }catch(e){} }
+function setupScratchCanvas(){
+  var canvas=$("scratchCanvas"); if(!canvas) return;
+  var ctx=canvas.getContext("2d");
+  function strokeStyle(s){ return s.erase?"#ffffff":"#1c2632"; }
+  function lineWidth(s){ return s.erase?20:2.6; }
+  function drawStroke(s){
+    if(s.pts.length<2) return;
+    ctx.beginPath(); ctx.strokeStyle=strokeStyle(s); ctx.lineWidth=lineWidth(s); ctx.lineCap="round"; ctx.lineJoin="round";
+    s.pts.forEach(function(p,i){ if(i===0) ctx.moveTo(p[0],p[1]); else ctx.lineTo(p[0],p[1]); });
+    ctx.stroke();
+  }
+  function redraw(){
+    var rect=canvas.getBoundingClientRect();
+    ctx.clearRect(0,0,rect.width,rect.height);
+    scratchStrokes.forEach(drawStroke);
+  }
+  function resize(){
+    var rect=canvas.getBoundingClientRect(), dpr=window.devicePixelRatio||1;
+    canvas.width=Math.max(1,Math.round(rect.width*dpr)); canvas.height=Math.max(1,Math.round(rect.height*dpr));
+    ctx.setTransform(dpr,0,0,dpr,0,0);
+    redraw();
+  }
+  function posFromEvent(e){ var rect=canvas.getBoundingClientRect(); return [e.clientX-rect.left,e.clientY-rect.top]; }
+  function endStroke(){
+    if(!scratchDrawing) return;
+    scratchDrawing=false;
+    if(scratchCurrent&&scratchCurrent.pts.length>1){ scratchStrokes.push(scratchCurrent); saveScratch(); }
+    scratchCurrent=null; redraw();
+  }
+  canvas.onpointerdown=function(e){
+    e.preventDefault();
+    try{ canvas.setPointerCapture(e.pointerId); }catch(err){}
+    scratchDrawing=true; scratchRedo=[];
+    scratchCurrent={erase:scratchMode==="erase",pts:[posFromEvent(e)]};
+  };
+  canvas.onpointermove=function(e){
+    if(!scratchDrawing||!scratchCurrent) return;
+    scratchCurrent.pts.push(posFromEvent(e));
+    redraw(); drawStroke(scratchCurrent);
+  };
+  canvas.onpointerup=endStroke;
+  canvas.onpointercancel=endStroke;
+  canvas.onpointerleave=function(){ if(scratchDrawing) endStroke(); };
+
+  loadScratch();
+  resize();
+  canvas._scratchResize=resize;
+
+  $("scUndo").onclick=function(){ if(!scratchStrokes.length) return; scratchRedo.push(scratchStrokes.pop()); saveScratch(); redraw(); };
+  $("scRedo").onclick=function(){ if(!scratchRedo.length) return; scratchStrokes.push(scratchRedo.pop()); saveScratch(); redraw(); };
+  $("scErase").onclick=function(){ scratchMode=scratchMode==="erase"?"pen":"erase"; $("scErase").classList.toggle("active",scratchMode==="erase"); };
+  $("scClear").onclick=function(){ if(!scratchStrokes.length) return; if(!confirm("연습장을 모두 지울까요?")) return; scratchStrokes=[]; scratchRedo=[]; saveScratch(); redraw(); };
+}
+
 /* ---------------- 자원 생성 ---------------- */
 function doGenerate(){
-  var raw=(formula||"").trim();
-  if(!raw){ groupMsg={ok:false,text:"수식을 입력해 주세요."}; return renderGroup(); }
-  var tk=tokenize(normalize(raw));
-  if(tk.error){ groupMsg={ok:false,text:tk.error}; return renderGroup(); }
-  if(!tk.tokens.length){ groupMsg={ok:false,text:"수식을 입력해 주세요."}; return renderGroup(); }
-  var need=countCards(tk.tokens);
-  var ev=evaluate(tk.tokens);
-  if(ev.error){ groupMsg={ok:false,text:ev.error}; return renderGroup(); }
-  var missingOps=["+","−","×","÷"].filter(function(op){ return !need[op]; });
-  if(missingOps.length){ groupMsg={ok:false,text:"사칙연산을 모두 한 번씩은 써야 해요. 아직 안 쓴 연산: "+missingOps.join(" ")}; return renderGroup(); }
-  var match=null; for(var i=0;i<game.resources.length;i++){ if(Math.abs(ev.value-game.resources[i].target)<1e-9){ match=game.resources[i]; break; } }
+  var raw=(answerInput||"").trim();
+  if(raw===""){ groupMsg={ok:false,text:"정답을 입력해 주세요."}; return renderGroup(); }
+  if(!/^-?\d+$/.test(raw)){ groupMsg={ok:false,text:"숫자만 입력해 주세요."}; return renderGroup(); }
+  var val=Number(raw);
+  var match=null; for(var i=0;i<game.resources.length;i++){ if(game.resources[i].answer===val){ match=game.resources[i]; break; } }
   if(!match){
-    groupMsg={ok:false,text: game.hintsEnabled ? ("현재 계산 값은 "+pretty(ev.value)+"이에요. 다시 생각해보세요.") : "계산이 틀렸어요. 다시 생각해 보세요."};
+    groupMsg={ok:false,text: game.hintsEnabled ? ("정답이 아니에요. 입력한 값: "+val) : "정답이 아니에요. 다시 계산해 보세요."};
     return renderGroup();
   }
 
   db.runTransaction(function(tx){
     return tx.get(gameRef()).then(function(snap){
-      var data=snap.data(), gg=data.groups[myIdx], short=[];
-      for(var k in need){ if(need[k]>(gg.cards[k]||0)) short.push("‘"+k+"’ "+(need[k]-(gg.cards[k]||0))+"장"); }
-      if(short.length) throw new Error("SHORT:"+short.join(", "));
-      for(var c in need){ gg.cards[c]-=need[c]; }
+      var data=snap.data(), gg=data.groups[myIdx];
+      var mi=-1; for(var i=0;i<data.resources.length;i++){ if(data.resources[i].id===match.id){ mi=i; break; } }
+      if(mi<0) throw new Error("NORES");
       gg.resources[match.id]=(gg.resources[match.id]||0)+1;
-      tx.update(gameRef(),{groups:data.groups});
+      var others=data.resources.filter(function(r,i){ return i!==mi; });
+      var np=randomUniqueMultProblems(1,others)[0];
+      data.resources[mi]={id:data.resources[mi].id,name:data.resources[mi].name,a:np.a,b:np.b,answer:np.answer};
+      tx.update(gameRef(),{groups:data.groups,resources:data.resources});
     });
-  }).then(function(){ formula=""; groupMsg={ok:true,text:"성공! "+pretty(ev.value)+" = "+match.name+" 1개를 만들었어요."}; renderGroup(); })
-    .catch(function(e){ var m=String(e.message||e); if(m.indexOf("SHORT:")===0) groupMsg={ok:false,text:"카드가 부족해요 — "+m.slice(6)+" 더 필요해요."}; else groupMsg={ok:false,text:"생성 중 문제가 생겼어요. 다시 시도해 주세요."}; renderGroup(); });
+  }).then(function(){ answerInput=""; groupMsg={ok:true,text:"정답! "+match.name+" 1개를 만들었어요. 새로운 곱셈식이 나왔어요."}; renderGroup(); })
+    .catch(function(){ groupMsg={ok:false,text:"생성 중 문제가 생겼어요. 다시 시도해 주세요."}; renderGroup(); });
 }
 
 /* ---------------- 실물 카드 교환 ---------------- */
@@ -1361,12 +1330,12 @@ function openTradeModal(){
   if(toIdx===null){ alert("교환할 다른 모둠이 없어요."); return; }
 
   var ov=document.createElement("div"); ov.className="overlay";
-  var TRADE_KEYS=ALL.concat(game.resources.map(function(r){return r.id;})).concat((game.products||defaultProducts()).map(function(p){return p.id;}));
+  var TRADE_KEYS=game.resources.map(function(r){return r.id;}).concat((game.products||defaultProducts()).map(function(p){return p.id;}));
   var WANT_KEYS=TRADE_KEYS, GIVE_KEYS=TRADE_KEYS;
   function ownedCount(k){
     if(isResourceId(k)) return (g.redeemed&&g.redeemed[k])||0;
     if(isProductId(k)) return (g.products&&g.products[k])||0;
-    return g.cards[k]||0;
+    return 0;
   }
   function giveCards(){ return GIVE_KEYS.filter(function(k){return ownedCount(k)>0;}); }
 
@@ -1415,18 +1384,15 @@ function acceptTrade(id){
       from.products=from.products||{}; to.products=to.products||{};
       function owned(gr,k){
         if(isResourceId(k,data.resources)) return gr.redeemed[k]||0;
-        if(isProductId(k,data.products)) return gr.products[k]||0;
-        return gr.cards[k]||0;
+        return gr.products[k]||0;
       }
       function addOwned(gr,k,n){
         if(isResourceId(k,data.resources)) gr.redeemed[k]=(gr.redeemed[k]||0)+n;
-        else if(isProductId(k,data.products)) gr.products[k]=(gr.products[k]||0)+n;
-        else gr.cards[k]=(gr.cards[k]||0)+n;
+        else gr.products[k]=(gr.products[k]||0)+n;
       }
       function subOwned(gr,k,n){
         if(isResourceId(k,data.resources)) gr.redeemed[k]-=n;
-        else if(isProductId(k,data.products)) gr.products[k]-=n;
-        else gr.cards[k]-=n;
+        else gr.products[k]-=n;
       }
       for(k in t.give){ if(owned(from,k)<t.give[k]) throw new Error("FROM"); }
       for(k in t.want){ if(owned(to,k)<t.want[k]) throw new Error("TO"); }
@@ -1475,6 +1441,8 @@ function acceptProductRequest(id){
       else alert("처리 중 문제가 생겼어요.");
       renderCurrent(); });
 }
+
+window.addEventListener("resize",function(){ var c=$("scratchCanvas"); if(c&&c._scratchResize) c._scratchResize(); });
 
 /* ---------------- 시작 ---------------- */
 init();
