@@ -1,0 +1,1483 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>사칙연산 무역 게임</title>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<style>
+  :root{
+    --bg:#e9edf4; --ink:#1c2632; --muted:#5b6b7f; --panel:#ffffff; --line:#d3dae4;
+    --admin:#3551b5; --admin-dark:#26398a; --admin-soft:#eaeefb;
+    --ore:#a9691a; --ore-soft:#fbf1de; --ore-line:#e7c58a;
+    --num:#0e7c6b; --num-soft:#e2f4f0; --num-line:#a9ddd2;
+    --op:#6d4bb0; --op-soft:#efe9f9; --op-line:#cdbcec;
+    --trade:#c2410c; --trade-soft:#fdeee2; --trade-line:#f0b892;
+    --ok:#1f8a4c; --ok-soft:#e6f6ec; --err:#c23b3b; --err-soft:#fbe9e9;
+    --mono:"SF Mono",ui-monospace,"Cascadia Mono","Roboto Mono","D2Coding",Consolas,monospace;
+    --sans:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Malgun Gothic","맑은 고딕","Noto Sans KR",system-ui,sans-serif;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;}
+  body{font-family:var(--sans);background:var(--bg);color:var(--ink);line-height:1.45;font-size:17px;padding:16px;-webkit-text-size-adjust:100%;touch-action:manipulation;}
+  .wrap{max-width:1200px;margin:0 auto;}
+  h1,h2,h3{margin:0;letter-spacing:-.01em;}
+  button{font-family:inherit;cursor:pointer;touch-action:manipulation;-webkit-tap-highlight-color:transparent;}
+  input,select{font-family:inherit;}
+  .hide{display:none !important;}
+
+  /* ---- tablet optimization ---- */
+  @media(min-width:768px){
+    body{font-size:19px;padding:20px;}
+    .btn{min-height:54px;padding:14px 22px;font-size:17px;}
+    .btn.slim{min-height:48px;padding:11px 16px;font-size:16px;}
+    .num-in{min-height:52px;font-size:19px;}
+    .key{min-height:52px;font-size:21px;}
+  }
+
+  .btn{border:none;border-radius:11px;padding:12px 18px;font-size:16px;font-weight:800;min-height:48px;background:var(--admin);color:#fff;transition:filter .12s,transform .05s;}
+  .btn:hover{filter:brightness(1.06);} .btn:active{transform:translateY(1px);}
+  .btn.ghost{background:var(--admin-soft);color:var(--admin-dark);}
+  .btn.ore{background:var(--ore);} .btn.trade{background:var(--trade);}
+  .btn.danger{background:var(--err-soft);color:var(--err);}
+  .btn.slim{padding:10px 14px;font-size:15px;min-height:44px;}
+  .num-in{font-size:17px;padding:11px 12px;border:1.5px solid var(--line);border-radius:11px;background:#fff;color:var(--ink);min-height:46px;width:96px;text-align:center;font-family:var(--mono);font-weight:700;}
+  select.num-in{font-family:var(--sans);width:auto;text-align:left;}
+
+  /* ---- Landing ---- */
+  .pagehead{display:flex;flex-direction:column;align-items:center;text-align:center;gap:6px;margin:2px 2px 20px;}
+  .pagehead h1{font-size:30px;font-weight:800;}
+  .pagehead .sub{color:var(--muted);font-weight:600;font-size:15px;}
+  .landing{display:grid;grid-template-columns:1fr;gap:18px;max-width:560px;margin:0 auto;}
+  @media(min-width:640px){.landing{grid-template-columns:1fr 1fr;}}
+  .lcard{background:var(--panel);border:1.5px solid var(--line);border-radius:18px;padding:22px;box-shadow:0 4px 16px rgba(28,38,50,.06);display:flex;flex-direction:column;gap:14px;}
+  .lcard h2{font-size:20px;font-weight:800;}
+  .lcard.teacher{border-color:var(--admin);} .lcard.group{border-color:var(--ore);}
+  .lcard .role{font-size:12.5px;font-weight:800;letter-spacing:.02em;padding:3px 10px;border-radius:999px;align-self:flex-start;}
+  .teacher .role{background:var(--admin-soft);color:var(--admin-dark);}
+  .group .role{background:var(--ore-soft);color:#7a4d0e;}
+  .lcard p{margin:0;color:var(--muted);font-size:14px;}
+  .code-in{font-family:var(--mono);font-size:26px;font-weight:800;text-align:center;letter-spacing:.18em;text-transform:uppercase;padding:12px;border:2px solid var(--line);border-radius:12px;width:100%;}
+  .grp-pick{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;}
+  .grp-pick button{border:1.5px solid var(--ore-line);background:var(--ore-soft);color:#7a4d0e;border-radius:10px;padding:12px 0;font-weight:800;font-size:16px;}
+  .grp-pick button.selected{background:var(--ore);color:#fff;border-color:var(--ore);}
+  .grp-pick.compact{grid-template-columns:repeat(auto-fit,minmax(64px,1fr));gap:6px;}
+  .grp-pick.compact button{padding:8px 4px;font-size:13px;}
+  .room-list-wrap{margin:2px 0 12px;}
+  .room-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;}
+  .room-card{position:relative;background:var(--ore-soft);border:1.5px solid var(--ore-line);border-radius:10px;padding:5px 3px 4px;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;cursor:pointer;line-height:1.1;transition:filter .12s,transform .05s;}
+  .room-card:hover{filter:brightness(.97);} .room-card:active{transform:translateY(1px);}
+  .room-card .rcode{font-family:var(--mono);font-size:15px;font-weight:800;letter-spacing:.05em;color:#7a4d0e;}
+  .room-card .rstatus{font-size:9px;font-weight:700;color:var(--muted);margin-top:2px;}
+  .room-card .rdel{position:absolute;top:2px;right:2px;width:16px;height:16px;border-radius:5px;border:none;background:rgba(255,255,255,.8);color:var(--err);font-size:9px;display:flex;align-items:center;justify-content:center;padding:0;line-height:1;}
+  .room-card .rdel:hover{background:#fff;}
+  .room-empty{color:var(--muted);font-size:13px;padding:4px 2px;margin:0;}
+  .setup{background:#fff;border:2px solid var(--err);border-radius:16px;padding:20px;max-width:720px;margin:0 auto;}
+  .setup h2{color:var(--err);margin-bottom:8px;} .setup ol{margin:10px 0 0;padding-left:20px;} .setup li{margin-bottom:8px;}
+  .setup code{background:#f2f4f8;padding:2px 6px;border-radius:6px;font-family:var(--mono);font-size:13px;}
+
+  /* ---- top bar (in-game) ---- */
+  .topbar{display:flex;align-items:center;gap:12px;flex-wrap:wrap;background:var(--panel);border:1.5px solid var(--line);border-radius:14px;padding:12px 16px;margin-bottom:18px;}
+  .topbar .who{font-size:18px;font-weight:800;}
+  .codepill{display:flex;align-items:center;gap:8px;background:var(--ink);color:#fff;border-radius:10px;padding:8px 12px;}
+  .codepill .lbl{font-size:11px;opacity:.7;font-weight:700;} .codepill .val{font-family:var(--mono);font-size:22px;font-weight:800;letter-spacing:.14em;}
+  .conn{font-size:12.5px;font-weight:700;color:var(--muted);display:flex;align-items:center;gap:6px;}
+  .dot{width:9px;height:9px;border-radius:50%;background:#b7c1cd;} .dot.on{background:var(--ok);} .dot.off{background:var(--err);}
+  .spacer{flex:1;}
+
+  .block-label{font-size:13px;font-weight:800;color:var(--muted);margin:0 0 10px;display:flex;align-items:center;gap:8px;}
+  .block-label::before{content:"";width:14px;height:3px;border-radius:2px;background:var(--admin);}
+  .board .block-label::before{background:var(--ore);}
+  .panel{background:var(--panel);border:1.5px solid var(--line);border-radius:16px;padding:18px;margin-bottom:18px;box-shadow:0 3px 12px rgba(28,38,50,.05);}
+  .panel.admin{border:2px solid var(--admin);}
+
+  .board-table{display:grid;grid-template-columns:repeat(8,1fr);gap:8px;}
+  .res-cell{background:var(--ore-soft);border:1.5px solid var(--ore-line);border-radius:12px;padding:10px 6px;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;}
+  .res-cell .rn{font-weight:800;font-size:13px;color:#5f3c0c;display:block;}
+  .res-cell .rt{font-family:var(--mono);font-size:20px;font-weight:700;color:var(--ore);}
+
+  .ctl-row{display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end;}
+  .field{display:flex;flex-direction:column;gap:5px;}
+  .field label{font-size:12.5px;font-weight:700;color:var(--muted);}
+  .divider{width:1px;align-self:stretch;background:var(--line);margin:0 4px;}
+  .hint{color:var(--muted);font-size:13px;margin-top:10px;}
+
+  .settings{border-top:1.5px dashed var(--line);margin-top:18px;padding-top:18px;display:none;}
+  .settings.open{display:block;}
+  .settings-grid{display:grid;grid-template-columns:1fr;gap:22px;}
+  @media(min-width:880px){.settings-grid{grid-template-columns:1.2fr 1fr;}}
+  .res-edit-row{display:flex;gap:8px;align-items:center;margin-bottom:8px;}
+  .res-edit-row input.rname{flex:1;min-width:0;font-size:16px;padding:9px 11px;border:1.5px solid var(--line);border-radius:9px;}
+  .res-edit-row input.rtarget{width:92px;font-family:var(--mono);font-weight:700;text-align:center;font-size:16px;padding:9px 8px;border:1.5px solid var(--line);border-radius:9px;}
+  .res-edit-row .del{background:var(--err-soft);color:var(--err);border:none;border-radius:9px;width:40px;height:40px;font-size:18px;font-weight:800;flex:none;}
+  .weights-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(72px,1fr));gap:9px;}
+  .wcell{display:flex;flex-direction:column;align-items:center;gap:5px;background:#f7f9fc;border:1.5px solid var(--line);border-radius:10px;padding:7px 4px;}
+  .wcell .wg{font-family:var(--mono);font-size:21px;font-weight:800;} .wcell.isnum .wg{color:var(--num);} .wcell.isop .wg{color:var(--op);}
+  .wcell input{width:100%;text-align:center;font-family:var(--mono);font-weight:700;font-size:15px;padding:6px 2px;border:1.5px solid var(--line);border-radius:7px;}
+  .save-row{display:flex;gap:10px;margin-top:16px;flex-wrap:wrap;}
+  .warn{color:var(--err);font-weight:700;font-size:14px;margin-top:8px;min-height:20px;}
+
+  /* ---- score calculation ---- */
+  .score-row{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:6px;}
+  .score-cell{display:flex;align-items:center;gap:5px;border-radius:10px;padding:6px 8px;border:1.5px solid var(--line);}
+  .score-cell .scn{font-weight:800;font-size:12px;white-space:nowrap;}
+  .score-cell input.scp{width:56px;text-align:center;font-family:var(--mono);font-weight:700;font-size:13px;padding:5px 4px;border:1.5px solid var(--line);border-radius:7px;}
+  .score-cell .scu{font-size:11px;color:var(--muted);}
+  .score-cell button{width:24px;height:24px;border-radius:6px;border:1.5px solid rgba(0,0,0,.15);background:rgba(255,255,255,.65);font-weight:800;font-size:13px;line-height:1;flex:none;}
+  .score-cell .scc{font-family:var(--mono);font-weight:800;font-size:13px;min-width:16px;text-align:center;}
+  .score-cell.c1{background:var(--num-soft);border-color:var(--num-line);}
+  .score-cell.c2{background:var(--admin-soft);border-color:var(--admin);}
+  .score-cell.c3{background:var(--ore-soft);border-color:var(--ore-line);}
+  .score-cell.c4{background:var(--op-soft);border-color:var(--op-line);}
+  .score-summary{font-size:13.5px;font-weight:700;margin:4px 0;}
+
+  /* ---- products (생산품) ---- */
+  .prod-row{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:6px;}
+  .prod-chip{display:inline-flex;align-items:center;gap:5px;border-radius:999px;padding:6px 12px;font-size:13px;font-weight:700;border:1.5px solid var(--line);}
+  button.prod-chip{font-family:inherit;cursor:pointer;}
+  .prod-chip.selected{outline:3px solid var(--ink);outline-offset:1px;}
+  .prod-chip.disabled{opacity:.35;cursor:not-allowed;}
+  .prod-chip .cc{font-family:var(--mono);font-weight:800;}
+  .prod-chip.sc1{background:var(--num-soft);border-color:var(--num-line);color:#0e6b5c;}
+  .prod-chip.sc2{background:var(--admin-soft);border-color:var(--admin);color:#26398a;}
+  .prod-chip.sc3{background:var(--ore-soft);border-color:var(--ore-line);color:#7a4d0e;}
+  .prod-chip.sc4{background:var(--op-soft);border-color:var(--op-line);color:#553a94;}
+  .recipe-row{display:flex;align-items:center;gap:8px;margin-bottom:6px;flex-wrap:wrap;}
+  .recipe-row .rname{font-weight:700;font-size:13px;min-width:60px;}
+  .recipe-row .del{background:var(--err-soft);color:var(--err);border:none;border-radius:7px;width:30px;height:30px;font-size:16px;font-weight:800;flex:none;}
+  .recipe-2col{display:grid;grid-template-columns:1fr;gap:0 24px;}
+  @media(min-width:860px){.recipe-2col{grid-template-columns:1fr 1fr;}}
+  .recipe-block{border-top:1.5px dashed var(--line);margin-top:14px;padding-top:14px;}
+  .score-result{margin-top:14px;padding:14px;border-radius:12px;background:var(--ok-soft);color:var(--ok);font-weight:700;line-height:1.7;}
+
+  /* ---- groups overview / cards ---- */
+  .groups{display:grid;grid-template-columns:1fr;gap:16px;}
+  @media(min-width:720px){.groups{grid-template-columns:repeat(2,1fr);}}
+  @media(min-width:1080px){.groups{grid-template-columns:repeat(3,1fr);}}
+  .group-grid{display:grid;grid-template-columns:1fr;gap:18px;margin-bottom:18px;}
+  .group-grid>.panel{margin-bottom:0;}
+  @media(min-width:820px){.group-grid{grid-template-columns:1fr 1fr;align-items:start;}}
+  .gcard{background:var(--panel);border:1.5px solid var(--line);border-radius:14px;overflow:hidden;}
+  .gcard .gtop{display:flex;align-items:center;gap:8px;padding:10px 12px;border-bottom:1.5px solid var(--line);background:#f7f9fc;}
+  .gcard .gtop .badge{width:26px;height:26px;border-radius:8px;background:var(--ink);color:#fff;font-weight:800;display:flex;align-items:center;justify-content:center;font-size:13px;}
+  .gcard .gtop .gn{font-weight:800;font-size:16px;}
+  .gcard .gbody{padding:12px;}
+
+  .cards-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:6px;max-width:340px;}
+  .tile{position:relative;aspect-ratio:1/1.05;border-radius:9px;border:1.5px solid;display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-size:16px;font-weight:800;user-select:none;}
+  .tile.num{color:var(--num);background:var(--num-soft);border-color:var(--num-line);}
+  .tile.op{color:var(--op);background:var(--op-soft);border-color:var(--op-line);}
+  .tile .cnt{position:absolute;top:-6px;right:-6px;min-width:18px;height:18px;padding:0 4px;background:var(--ink);color:#fff;border-radius:999px;font-family:var(--sans);font-size:11px;font-weight:800;display:flex;align-items:center;justify-content:center;}
+  .tile.zero{opacity:.28;filter:grayscale(.5);} .tile.zero .cnt{background:#9aa7b6;}
+  .mini-label{font-size:12px;font-weight:800;color:var(--muted);margin:0 0 7px;}
+
+  /* ---- teacher group-overview compact mode ---- */
+  .groups.compact .gcard .gtop{padding:6px 8px;}
+  .groups.compact .gcard .gtop .badge{width:20px;height:20px;font-size:11px;}
+  .groups.compact .gcard .gtop .gn{font-size:13px;}
+  .groups.compact .gcard .gbody{padding:8px;}
+  .groups.compact .mini-label{font-size:10px;margin:0 0 4px;}
+  .groups.compact .cards-grid{grid-template-columns:repeat(8,1fr);gap:3px;max-width:100%;}
+  .groups.compact .tile{font-size:10px;border-radius:6px;}
+  .groups.compact .tile .cnt{min-width:13px;height:13px;font-size:8px;top:-4px;right:-4px;}
+  .groups.compact .prod-row{gap:3px;margin-bottom:3px;}
+  .groups.compact .prod-chip{padding:2px 6px;font-size:10px;gap:3px;}
+  .groups.compact .prod-chip .cc{font-size:10px;}
+  .groups.compact .btn.slim{min-height:32px;padding:5px 9px;font-size:12px;}
+
+  /* ---- group play ---- */
+  .formula-in{width:100%;font-family:var(--mono);font-size:24px;font-weight:700;text-align:center;padding:12px;border:2px solid var(--line);border-radius:12px;letter-spacing:.06em;color:var(--ink);}
+  .formula-in:focus{outline:none;border-color:var(--num);}
+  .keypad{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-top:9px;}
+  .key{border:1.5px solid var(--line);background:#fff;border-radius:9px;padding:9px 0;font-family:var(--mono);font-size:19px;font-weight:800;min-height:44px;}
+  .key.n{color:var(--num);} .key.o{color:var(--op);} .key.act{font-family:var(--sans);font-size:13px;color:var(--muted);}
+  .key.clearall{grid-column:1 / -1;font-family:var(--sans);font-size:17px;font-weight:800;color:var(--err);background:var(--err-soft);border-color:var(--err-soft);min-height:52px;}
+  .gen-btn{margin-top:10px;width:100%;background:var(--ore);color:#fff;border:none;border-radius:12px;padding:14px;font-size:18px;font-weight:800;min-height:54px;}
+  .msg{margin-top:10px;padding:10px 12px;border-radius:10px;font-size:14px;font-weight:600;line-height:1.5;}
+  .msg.ok{background:var(--ok-soft);color:var(--ok);} .msg.bad{background:var(--err-soft);color:var(--err);}
+
+  /* ---- trades ---- */
+  .offer{border:1.5px solid var(--trade-line);background:var(--trade-soft);border-radius:12px;padding:12px;margin-bottom:10px;}
+  .offer .ohead{font-weight:800;font-size:14.5px;margin-bottom:8px;color:#8a2d08;}
+  .offer .oline{font-size:14px;margin-bottom:4px;}
+  .offer .oline b{font-family:var(--mono);}
+  .offer .oact{display:flex;gap:8px;margin-top:10px;}
+  .mini-cards{display:inline-flex;gap:5px;flex-wrap:wrap;vertical-align:middle;}
+  .mc{display:inline-flex;align-items:center;gap:3px;background:#fff;border:1.5px solid var(--line);border-radius:7px;padding:2px 7px;font-family:var(--mono);font-weight:800;font-size:14px;}
+  .mc .x{font-family:var(--sans);color:var(--muted);font-size:11px;font-weight:700;}
+  .mc.none{color:var(--muted);font-family:var(--sans);font-weight:700;font-size:13px;}
+
+  /* ---- modal ---- */
+  .overlay{position:fixed;inset:0;background:rgba(20,28,38,.5);display:flex;align-items:flex-start;justify-content:center;padding:20px;overflow:auto;z-index:50;}
+  .modal{background:#fff;border-radius:18px;max-width:1180px;width:100%;padding:20px;box-shadow:0 20px 60px rgba(0,0,0,.3);}
+  .modal h3{font-size:19px;font-weight:800;margin-bottom:6px;}
+  .modal .sub2{color:var(--muted);font-size:13.5px;margin-bottom:14px;}
+  .stepgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px;margin-top:8px;}
+  .stepper{display:flex;align-items:center;justify-content:space-between;gap:6px;border:1.5px solid var(--line);border-radius:10px;padding:6px 8px;min-width:0;}
+  .stepper .g{font-family:var(--mono);font-weight:800;font-size:13px;text-align:center;padding:5px 7px;border-radius:8px;white-space:nowrap;}
+  .stepper.muted .g{color:var(--muted);background:#eef1f5;}
+  .stepper.sc1 .g{color:#0e6b5c;background:var(--num-soft);} .stepper.sc2 .g{color:#26398a;background:var(--admin-soft);}
+  .stepper.sc3 .g{color:#7a4d0e;background:var(--ore-soft);} .stepper.sc4 .g{color:#553a94;background:var(--op-soft);}
+  .stepper .c{font-family:var(--mono);font-weight:800;font-size:15px;min-width:30px;text-align:center;flex:none;}
+  .stepper button{width:30px;height:30px;border-radius:7px;border:1.5px solid var(--line);background:#f7f9fc;font-weight:800;font-size:15px;line-height:1;flex:none;}
+  .stepper .cap{font-size:10px;color:var(--muted);}
+  .modal .foot{display:flex;gap:10px;margin-top:18px;flex-wrap:wrap;}
+  .footnote{text-align:center;color:var(--muted);font-size:12.5px;margin:24px 0 6px;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="pagehead">
+    <h1>사칙연산 무역 게임</h1>
+    <span class="sub">사칙연산으로 자원을 만들고 조합하여 물건을 생산해요!</span>
+  </div>
+
+  <div id="screen"></div>
+
+  <p class="footnote">만든이: 강형권 선생님</p>
+</div>
+
+<script>
+"use strict";
+
+/* =====================================================================
+   ① 파이어베이스 설정 — 콘솔에서 복사한 값이 이미 채워져 있어요.
+   다른 프로젝트를 쓰려면 이 값을 새 프로젝트 값으로 바꿔주세요.
+   ===================================================================== */
+var FIREBASE_CONFIG = {
+  apiKey: "AIzaSyA9hl_DWPbnViGzMnNVd9I25nlogrdpTso",
+  authDomain: "trade-game-49a71.firebaseapp.com",
+  projectId: "trade-game-49a71",
+  storageBucket: "trade-game-49a71.firebasestorage.app",
+  messagingSenderId: "442725138300",
+  appId: "1:442725138300:web:84c1f7968fcdca9a2daef9"
+};
+
+/* ---------------- 상수 & 파서 (오프라인판과 동일) ---------------- */
+var NUMS=["1","2","3","4","5","6","7","8","9"];
+var OPS=["+","−","×","÷","(",")"]; var ALL=NUMS.concat(OPS);
+
+function emptyCards(scoreCategories){
+  var c={}; ALL.forEach(function(k){ c[k]=0; });
+  (scoreCategories||defaultScoreCategories()).forEach(function(cat){ cat.items.forEach(function(it){ c[it.id]=0; }); });
+  return c;
+}
+function defaultWeights(){ var w={}; ALL.forEach(function(k){ w[k]=(k==="+"||k==="−"||k==="×"||k==="÷")?2:1; }); return w; }
+function randomUniqueTargets(n,min,max){
+  var vals=[],seen={},tries=0;
+  while(vals.length<n && tries<5000){
+    tries++;
+    var v=min+Math.floor(Math.random()*(max-min+1));
+    if(!seen[v]){ seen[v]=true; vals.push(v); }
+  }
+  return vals;
+}
+function defaultResources(){
+  var names=["물","밀","모래","목재","과일","목화","철광석","석유"];
+  var targets=randomUniqueTargets(names.length,2,90);
+  return names.map(function(n,i){ return {id:"r"+(i+1),name:n,target:targets[i]}; });
+}
+function makeGroup(i,resources,products,scoreCategories){
+  var res={},red={}; resources.forEach(function(r){ res[r.id]=0; red[r.id]=0; });
+  var prod={}; (products||defaultProducts()).forEach(function(p){ prod[p.id]=0; });
+  return {name:(i+1)+"모둠",cards:emptyCards(scoreCategories),resources:res,redeemed:red,products:prod};
+}
+function defaultProducts(){
+  return [
+    {id:"p1",name:"빵",category:"food",recipe:{res:{r2:2,r1:1}}},
+    {id:"p2",name:"천",category:"life",recipe:{res:{r6:2,r1:1}}},
+    {id:"p3",name:"플라스틱",category:"life",recipe:{res:{r8:2,r1:1}}},
+    {id:"p4",name:"유리",category:"material",recipe:{res:{r3:2,r8:1}}},
+    {id:"p5",name:"강철",category:"material",recipe:{res:{r7:2,r8:1}}},
+    {id:"p6",name:"통조림",category:"food",recipe:{res:{r5:2},prod:{p5:1}}},
+    {id:"p7",name:"페트병",category:"life",recipe:{res:{r1:1},prod:{p3:1}}},
+    {id:"p8",name:"옷",category:"life",recipe:{prod:{p2:2,p3:1}}},
+    {id:"p9",name:"가구",category:"material",recipe:{res:{r4:2},prod:{p5:1}}},
+    {id:"p10",name:"반도체",category:"tech",recipe:{res:{r3:2},prod:{p5:1}}},
+    {id:"p11",name:"집",category:"material",recipe:{res:{r4:2},prod:{p9:1,p5:1,p4:1,p3:1}}},
+    {id:"p12",name:"컴퓨터",category:"tech",recipe:{prod:{p10:1,p4:1,p3:1}}},
+    {id:"p13",name:"비행기",category:"tech",recipe:{prod:{p10:1,p5:2,p3:1,p9:1}}},
+    {id:"p14",name:"로봇",category:"tech",recipe:{prod:{p10:1,p12:1,p5:1,p3:1}}}
+  ];
+}
+function defaultScoreCategories(){
+  var defs=[
+    [["물",5],["밀",5],["과일",8],["빵",25],["통조림",65]],
+    [["목화",8],["석유",10],["천",30],["플라스틱",34],["페트병",45],["옷",100]],
+    [["모래",6],["목재",6],["철광석",10],["유리",32],["강철",40],["가구",60],["집",160]],
+    [["반도체",60],["컴퓨터",145],["비행기",195],["로봇",260]]
+  ];
+  var counter=0;
+  return defs.map(function(items,ci){
+    return {id:"cat"+(ci+1),items:items.map(function(it){ counter++; return {id:"sc"+counter,name:it[0],points:it[1]}; })};
+  });
+}
+function defaultGameData(groupCount){
+  var gc=(groupCount>=1&&groupCount<=12)?groupCount:6;
+  var resources=defaultResources(); var products=defaultProducts(); var scoreCategories=defaultScoreCategories();
+  var groups=[]; for(var i=0;i<gc;i++) groups.push(makeGroup(i,resources,products,scoreCategories));
+  return {createdAt:Date.now(),groupCount:gc,nextId:resources.length+1,resources:resources,weights:defaultWeights(),groups:groups,hintsEnabled:false,scoreEnabled:false,scoreEditEnabled:true,scoreCategories:scoreCategories,products:products,retargetMinutes:0,retargetNextAt:null};
+}
+
+function normalize(str){
+  return String(str).replace(/\s+/g,"").replace(/[*xX✕✖＊]/g,"×").replace(/[\/÷]/g,"÷").replace(/[-−–—ー]/g,"−").replace(/[+＋]/g,"+").replace(/[（]/g,"(").replace(/[）]/g,")");
+}
+function tokenize(str){
+  var tokens=[],chars=str.split(""),i;
+  for(i=0;i<chars.length;i++){ var ch=chars[i];
+    if(ch>="1"&&ch<="9") tokens.push({t:"num",v:+ch,card:ch});
+    else if(ch==="0") return {error:"‘0’ 카드는 없어요. 숫자 카드는 1~9만 사용할 수 있어요."};
+    else if(ch==="+"||ch==="−"||ch==="×"||ch==="÷") tokens.push({t:"op",v:ch,card:ch});
+    else if(ch==="(") tokens.push({t:"lp",card:"("});
+    else if(ch===")") tokens.push({t:"rp",card:")"});
+    else return {error:"사용할 수 없는 문자예요: ‘"+ch+"’"};
+  }
+  return {tokens:tokens};
+}
+function countCards(tokens){ var c={}; tokens.forEach(function(tk){ if(tk.card) c[tk.card]=(c[tk.card]||0)+1; }); return c; }
+var PREC={"+":1,"−":1,"×":2,"÷":2};
+function evaluate(tokens){
+  var out=[],ops=[],i,top;
+  for(i=0;i<tokens.length;i++){ var tk=tokens[i];
+    if(tk.t==="num") out.push(tk);
+    else if(tk.t==="op"){ while(ops.length){ top=ops[ops.length-1]; if(top.t==="op"&&PREC[top.v]>=PREC[tk.v]) out.push(ops.pop()); else break; } ops.push(tk); }
+    else if(tk.t==="lp") ops.push(tk);
+    else if(tk.t==="rp"){ while(ops.length&&ops[ops.length-1].t!=="lp") out.push(ops.pop()); if(!ops.length) return {error:"괄호 짝이 맞지 않아요. ‘)’에 맞는 ‘(’가 없어요."}; ops.pop(); }
+  }
+  while(ops.length){ top=ops.pop(); if(top.t==="lp") return {error:"괄호 짝이 맞지 않아요. ‘(’에 맞는 ‘)’가 없어요."}; out.push(top); }
+  var st=[];
+  for(i=0;i<out.length;i++){ var o=out[i];
+    if(o.t==="num") st.push(o.v);
+    else{ if(st.length<2) return {error:"수식 형태가 올바르지 않아요. 연산자 위치를 확인해 주세요."};
+      var b=st.pop(),a=st.pop(),r;
+      if(o.v==="+") r=a+b; else if(o.v==="−") r=a-b; else if(o.v==="×") r=a*b;
+      else{ if(b===0) return {error:"0으로 나눌 수 없어요."}; r=a/b; } st.push(r); }
+  }
+  if(st.length!==1) return {error:"수식 형태가 올바르지 않아요. 숫자와 연산자 개수를 확인해 주세요."};
+  return {value:st[0]};
+}
+function pretty(v){ return String(Math.round(v*1e6)/1e6); }
+function pickCard(weights){ var total=0,i; for(i=0;i<ALL.length;i++) total+=Math.max(0,weights[ALL[i]]||0); if(total<=0) return null; var r=Math.random()*total; for(i=0;i<ALL.length;i++){ r-=Math.max(0,weights[ALL[i]]||0); if(r<0) return ALL[i]; } return ALL[ALL.length-1]; }
+
+/* ---------------- 전역 상태 ---------------- */
+var db=null, ready=false;
+var role=null, code=null, myIdx=null;   // 이 기기의 정체성
+var game=null, trades=[];               // 실시간 스냅샷
+var unsubGame=null, unsubTrades=null;
+var rooms=[], unsubRooms=null;          // 랜딩화면 방 목록
+var formula="", groupMsg=null, tradeMsg=null, productMsg=null, settingsOpen=false, scoreSettingsOpen=false, recipeSettingsOpen=false, connected=false;
+var SESSION_KEY="trade-online-session";
+
+/* ---------------- 알림(메시지) 3초 후 자동 사라짐 ---------------- */
+var MSG_AUTOCLEAR_MS=3000;
+var msgTimers={}, msgLast={};
+function armMsgAutoClear(key,val,clearFn){
+  if(val==null){ if(msgTimers[key]){ clearTimeout(msgTimers[key]); msgTimers[key]=null; } msgLast[key]=null; return; }
+  if(msgLast[key]===val) return;
+  msgLast[key]=val;
+  if(msgTimers[key]) clearTimeout(msgTimers[key]);
+  msgTimers[key]=setTimeout(function(){ msgTimers[key]=null; msgLast[key]=null; clearFn(); renderCurrent(); },MSG_AUTOCLEAR_MS);
+}
+function clearAllMsgTimers(){
+  Object.keys(msgTimers).forEach(function(k){ if(msgTimers[k]){ clearTimeout(msgTimers[k]); msgTimers[k]=null; } });
+  msgLast={};
+}
+
+var $=function(id){ return document.getElementById(id); };
+function esc(s){ return String(s).replace(/[&<>"]/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;"}[c];}); }
+function gameRef(){ return db.collection("games").doc(code); }
+
+/* ---------------- 초기화 ---------------- */
+function configOk(){ return FIREBASE_CONFIG.apiKey && FIREBASE_CONFIG.apiKey.indexOf("여기에")<0; }
+function init(){
+  if(!configOk()){ renderSetup(); return; }
+  try{ firebase.initializeApp(FIREBASE_CONFIG); db=firebase.firestore(); ready=true; }
+  catch(e){ renderSetup("파이어베이스 초기화에 실패했어요. 설정값을 다시 확인해 주세요."); return; }
+  // 연결 상태 표시용
+  db.enableNetwork().then(function(){ connected=true; renderCurrent(); }).catch(function(){});
+  restoreSession();
+  setInterval(checkAutoRetarget,10000);
+  setInterval(tickRetargetCountdown,1000);
+}
+/* ---------------- 목표 숫자 주기적 재설정 ---------------- */
+function checkAutoRetarget(){
+  if(role!=="teacher"||!game||!(game.retargetMinutes>0)||!game.retargetNextAt) return;
+  if(Date.now()<game.retargetNextAt) return;
+  db.runTransaction(function(tx){
+    return tx.get(gameRef()).then(function(snap){
+      var data=snap.data();
+      if(!data||!(data.retargetMinutes>0)||!data.retargetNextAt||Date.now()<data.retargetNextAt) return;
+      var targets=randomUniqueTargets(data.resources.length,2,90);
+      var newRes=data.resources.map(function(r,i){ return {id:r.id,name:r.name,target:targets[i]}; });
+      tx.update(gameRef(),{resources:newRes,retargetNextAt:Date.now()+data.retargetMinutes*60000});
+    });
+  }).catch(function(){});
+}
+var retargetLastNextAt=undefined, retargetFlashUntil=0;
+function tickRetargetCountdown(){
+  var active=game&&game.retargetMinutes>0&&game.retargetNextAt;
+  if(active){
+    if(retargetLastNextAt!==game.retargetNextAt){ retargetLastNextAt=game.retargetNextAt; retargetFlashUntil=Date.now()+3000; }
+  } else {
+    retargetLastNextAt=undefined; retargetFlashUntil=0;
+  }
+
+  var cd=document.getElementById("retargetCountdown");
+  if(cd&&active){
+    var ms=Math.max(0,game.retargetNextAt-Date.now());
+    var totalSec=Math.floor(ms/1000), mm=Math.floor(totalSec/60), ss=totalSec%60;
+    cd.textContent=mm+"분 "+(ss<10?"0":"")+ss+"초";
+  }
+
+  if(active&&game.retargetNextAt-Date.now()<=0) checkAutoRetarget();
+
+  var alertEl=document.getElementById("retargetAlert");
+  if(!alertEl) return;
+  if(!active){ alertEl.innerHTML=""; return; }
+  var remain=game.retargetNextAt-Date.now();
+  if(remain>0&&remain<=10000){
+    alertEl.innerHTML='<div class="msg bad" style="margin:0 0 12px">⚠ '+Math.ceil(remain/1000)+'초 후 목표 숫자가 재설정돼요!</div>';
+  } else if(remain>10000&&Date.now()<retargetFlashUntil){
+    alertEl.innerHTML='<div class="msg ok" style="margin:0 0 12px">'+game.retargetMinutes+'분 뒤 목표 숫자가 재설정돼요.</div>';
+  } else {
+    alertEl.innerHTML="";
+  }
+}
+function restoreSession(){
+  try{
+    var s=JSON.parse(sessionStorage.getItem(SESSION_KEY)||"null");
+    if(s&&s.code&&s.role){ role=s.role; code=s.code; myIdx=(typeof s.myIdx==="number")?s.myIdx:null; subscribe(); return; }
+  }catch(e){}
+  renderLanding();
+}
+function saveSession(){ try{ sessionStorage.setItem(SESSION_KEY,JSON.stringify({role:role,code:code,myIdx:myIdx})); }catch(e){} }
+function clearSession(){ try{ sessionStorage.removeItem(SESSION_KEY); }catch(e){} }
+
+/* ---------------- 실시간 구독 ---------------- */
+function subscribe(){
+  if(unsubGame) unsubGame(); if(unsubTrades) unsubTrades();
+  if(unsubRooms){ unsubRooms(); unsubRooms=null; }
+  unsubGame=gameRef().onSnapshot(function(snap){
+    connected=true;
+    if(!snap.exists){ alert("게임을 찾을 수 없어요(코드가 바뀌었거나 삭제됨)."); leave(); return; }
+    game=snap.data(); renderCurrent();
+  }, function(){ connected=false; renderCurrent(); });
+  unsubTrades=gameRef().collection("trades").orderBy("createdAt","desc").limit(80).onSnapshot(function(qs){
+    trades=qs.docs.map(function(d){ var o=d.data(); o.id=d.id; return o; }); renderCurrent();
+  }, function(){});
+  saveSession();
+}
+function leave(){ if(unsubGame) unsubGame(); if(unsubTrades) unsubTrades(); unsubGame=unsubTrades=null; role=code=myIdx=null; game=null; trades=[]; formula=""; groupMsg=tradeMsg=productMsg=null; clearAllMsgTimers(); clearSession(); renderLanding(); }
+
+/* ---------------- 랜딩 ---------------- */
+function genCode(){ var s=""; for(var i=0;i<4;i++) s+=Math.floor(Math.random()*10); return s; }
+
+function renderSetup(extra){
+  $("screen").innerHTML=
+  '<div class="setup"><h2>파이어베이스 설정이 필요해요</h2>'+
+  (extra?'<p style="color:var(--err);font-weight:700">'+esc(extra)+'</p>':'')+
+  '<p>이 앱은 여러 태블릿이 실시간으로 카드를 주고받도록 파이어베이스(무료)를 씁니다. 아래를 한 번만 설정하면 돼요.</p>'+
+  '<ol>'+
+  '<li><code>console.firebase.google.com</code> 접속 → <b>프로젝트 추가</b>(이름 아무거나).</li>'+
+  '<li>왼쪽 <b>빌드 → Firestore Database → 데이터베이스 만들기</b> → <b>테스트 모드로 시작</b> → 위치는 <code>asia-northeast3(서울)</code> → 사용 설정.</li>'+
+  '<li>⚙ <b>프로젝트 설정 → 일반 → 내 앱 → 웹(&lt;/&gt;)</b> 아이콘으로 앱 등록 → 나오는 <code>firebaseConfig</code> 값 복사.</li>'+
+  '<li>이 HTML 파일을 편집기로 열어 상단 <code>FIREBASE_CONFIG</code> 자리에 붙여넣고 저장.</li>'+
+  '<li>파일을 깃허브 페이지·파이어베이스 호스팅에 올리거나, 각 태블릿에 복사해서 열기.</li>'+
+  '</ol></div>';
+}
+
+function renderLanding(){
+  var s=$("screen");
+  s.innerHTML=
+  '<div class="landing">'+
+    '<div class="lcard teacher"><span class="role">교사용</span><h2>게임 만들기</h2>'+
+      '<p>새 게임을 만들면 <b>방 코드</b>가 나와요.</p>'+
+      '<div class="field"><label>모둠 수 (1~12)</label><input class="num-in" id="createGroupCount" type="number" min="1" max="12" value="6" inputmode="numeric"></div>'+
+      '<button class="btn" id="createBtn">새 게임 만들기</button>'+
+      '<div style="height:1px;background:var(--line);margin:4px 0"></div>'+
+      '<p>이미 만든 게임을 다시 열려면 코드를 입력하세요.</p>'+
+      '<input class="code-in" id="tCode" maxlength="4" inputmode="numeric" pattern="[0-9]*" placeholder="코드" />'+
+      '<button class="btn ghost" id="tOpen">교사 화면 열기</button>'+
+    '</div>'+
+    '<div class="lcard group"><span class="role">모둠용</span><h2>게임 참여하기</h2>'+
+      '<div class="room-list-wrap"><div class="block-label">전체 방 목록</div><div id="roomListWrap"><p class="room-empty">불러오는 중...</p></div></div>'+
+      '<p><b>방 코드</b>를 입력하세요.</p>'+
+      '<input class="code-in" id="gCode" maxlength="4" inputmode="numeric" pattern="[0-9]*" placeholder="코드" />'+
+      '<button class="btn ore" id="gNext">다음</button>'+
+      '<div id="grpPickWrap"></div>'+
+    '</div>'+
+  '</div>';
+
+  $("createBtn").onclick=function(){
+    var gc=parseInt($("createGroupCount").value,10);
+    if(isNaN(gc)||gc<1||gc>12) return alert("모둠 수는 1~12 사이로 입력해 주세요.");
+    var c=genCode();
+    db.collection("games").doc(c).set(defaultGameData(gc)).then(function(){
+      role="teacher"; code=c; myIdx=null; subscribe();
+    }).catch(function(){ alert("게임 생성에 실패했어요. 인터넷 연결과 파이어베이스 설정을 확인해 주세요."); });
+  };
+  $("tCode").onkeydown=function(e){ if(e.key==="Enter"){ e.preventDefault(); $("tOpen").click(); } };
+  $("gCode").onkeydown=function(e){ if(e.key==="Enter"){ e.preventDefault(); $("gNext").click(); } };
+  $("tOpen").onclick=function(){
+    var c=($("tCode").value||"").trim().toUpperCase(); if(c.length<4) return alert("코드 4자리를 입력해 주세요.");
+    db.collection("games").doc(c).get().then(function(snap){
+      if(!snap.exists) return alert("그 코드의 게임이 없어요.");
+      role="teacher"; code=c; myIdx=null; subscribe();
+    }).catch(function(){ alert("연결에 실패했어요."); });
+  };
+  $("gNext").onclick=function(){
+    var c=($("gCode").value||"").trim().toUpperCase(); if(c.length<4) return alert("코드 4자리를 입력해 주세요.");
+    db.collection("games").doc(c).get().then(function(snap){
+      if(!snap.exists) return alert("그 코드의 게임이 없어요. 코드를 다시 확인해 주세요.");
+      var gc=snap.data().groupCount||6, html='<p class="mini-label" style="margin-top:8px">우리 모둠을 골라 주세요</p><div class="grp-pick">';
+      for(var i=0;i<gc;i++) html+='<button data-i="'+i+'">'+(i+1)+'모둠</button>';
+      html+='</div>'; $("grpPickWrap").innerHTML=html;
+      Array.prototype.forEach.call($("grpPickWrap").querySelectorAll("button"),function(b){
+        b.onclick=function(){ role="group"; code=c; myIdx=+b.dataset.i; subscribe(); };
+      });
+    }).catch(function(){ alert("연결에 실패했어요."); });
+  };
+
+  subscribeRoomList();
+}
+
+/* ---------------- 방 목록 (랜딩화면) ---------------- */
+function subscribeRoomList(){
+  if(unsubRooms){ unsubRooms(); unsubRooms=null; }
+  unsubRooms=db.collection("games").orderBy("createdAt","desc").onSnapshot(function(qs){
+    rooms=qs.docs.map(function(d){ var o=d.data(); o.code=d.id; return o; });
+    renderRoomList();
+  }, function(){
+    var w=$("roomListWrap"); if(w) w.innerHTML='<p class="room-empty">방 목록을 불러오지 못했어요.</p>';
+  });
+}
+function renderRoomList(){
+  var w=$("roomListWrap"); if(!w) return;
+  if(!rooms.length){ w.innerHTML='<p class="room-empty">아직 생성된 방이 없어요.</p>'; return; }
+  var h='<div class="room-grid">';
+  rooms.forEach(function(r){
+    var gc=r.groupCount||((r.groups&&r.groups.length)||0);
+    h+='<div class="room-card" data-code="'+esc(r.code)+'">'+
+       '<button type="button" class="rdel" data-delroom="'+esc(r.code)+'" title="방 삭제" aria-label="방 삭제">🗑</button>'+
+       '<span class="rcode">'+esc(r.code)+'</span>'+
+       '<span class="rstatus">'+gc+'모둠 · 진행중</span>'+
+       '</div>';
+  });
+  h+='</div>';
+  w.innerHTML=h;
+  Array.prototype.forEach.call(w.querySelectorAll(".room-card"),function(card){
+    card.onclick=function(e){
+      if(e.target.closest("[data-delroom]")) return;
+      var c=card.getAttribute("data-code");
+      var input=$("gCode"); if(input){ input.value=c; input.focus(); }
+    };
+  });
+  Array.prototype.forEach.call(w.querySelectorAll("[data-delroom]"),function(b){
+    b.onclick=function(e){ e.stopPropagation(); confirmDeleteRoom(b.getAttribute("data-delroom")); };
+  });
+}
+function confirmDeleteRoom(c){
+  var ov=document.createElement("div"); ov.className="overlay";
+  ov.innerHTML='<div class="modal" style="max-width:340px">'+
+    '<h3>방 삭제</h3>'+
+    '<p class="sub2" style="margin-bottom:2px">코드 <b style="font-family:var(--mono)">'+esc(c)+'</b> 방을 정말 삭제할까요?</p>'+
+    '<p style="color:var(--err);font-weight:700;font-size:13.5px;margin:8px 0 0">삭제하면 되돌릴 수 없고, 참여 중인 모둠 기기의 연결도 모두 끊겨요.</p>'+
+    '<div class="foot"><button class="btn ghost" id="roomDelNo">아니오</button><button class="btn danger" id="roomDelYes">예</button></div>'+
+    '</div>';
+  document.body.appendChild(ov);
+  function close(){ if(ov.parentNode) document.body.removeChild(ov); }
+  ov.querySelector("#roomDelNo").onclick=close;
+  ov.onclick=function(e){ if(e.target===ov) close(); };
+  ov.querySelector("#roomDelYes").onclick=function(){
+    var yesBtn=ov.querySelector("#roomDelYes"); yesBtn.disabled=true;
+    db.collection("games").doc(c).collection("trades").get().then(function(qs){
+      var batch=db.batch(); qs.forEach(function(d){ batch.delete(d.ref); }); return batch.commit();
+    }).then(function(){ return db.collection("games").doc(c).delete(); })
+      .then(close)
+      .catch(function(){ alert("삭제에 실패했어요."); close(); });
+  };
+}
+
+/* ---------------- 공통 조각 ---------------- */
+function topbar(title){
+  return '<div class="topbar"><span class="who">'+esc(title)+'</span>'+
+    '<div class="codepill"><span class="lbl">방 코드</span><span class="val">'+esc(code)+'</span></div>'+
+    '<span class="conn"><span class="dot '+(connected?"on":"off")+'"></span>'+(connected?"연결됨":"연결 끊김")+'</span>'+
+    '<div class="spacer"></div><button class="btn ghost slim" id="leaveBtn">나가기</button></div>';
+}
+function cardsGridHTML(cardsObj){
+  var h='<div class="cards-grid">';
+  ALL.forEach(function(k){ var isNum=NUMS.indexOf(k)>=0,n=(cardsObj&&cardsObj[k])||0;
+    h+='<div class="tile '+(isNum?"num":"op")+(n===0?" zero":"")+'"><span>'+esc(k)+'</span><span class="cnt">'+n+'</span></div>'; });
+  return h+'</div>';
+}
+function catClassByName(rname){
+  var found=null;
+  (game.scoreCategories||defaultScoreCategories()).forEach(function(cat,ci){
+    cat.items.forEach(function(it){ if(it.name===rname) found="sc"+((ci%4)+1); });
+  });
+  return found||"sc3";
+}
+function resChipsHTML(resObj){
+  var h='<div class="prod-row">';
+  game.resources.forEach(function(r){ var n=(resObj&&resObj[r.id])||0; h+='<span class="prod-chip '+catClassByName(r.name)+'">'+esc(r.name)+'<span class="cc">'+n+'</span></span>'; });
+  return h+'</div>';
+}
+function boardHTML(){
+  var h='<div class="panel board"><div class="block-label">자원(광물) 목표 숫자</div><div id="retargetAlert"></div><div class="board-table">';
+  game.resources.forEach(function(r){ h+='<div class="res-cell"><span class="rn">'+esc(r.name)+'</span><span class="rt">'+r.target+'</span></div>'; });
+  return h+'</div></div>';
+}
+function miniCardsHTML(obj){
+  var keys=Object.keys(obj||{}).filter(function(k){return obj[k]>0;});
+  if(!keys.length) return '<span class="mc none">없음</span>';
+  return '<span class="mini-cards">'+keys.map(function(k){return '<span class="mc">'+esc(cardDisplayName(k))+'<span class="x">×'+obj[k]+'</span></span>';}).join("")+'</span>';
+}
+function allScoreCardItems(){
+  var out=[]; (game.scoreCategories||defaultScoreCategories()).forEach(function(cat,ci){ cat.items.forEach(function(it){ out.push({id:it.id,name:it.name,catIdx:ci}); }); }); return out;
+}
+function cardDisplayName(k){
+  if(NUMS.indexOf(k)>=0||OPS.indexOf(k)>=0) return k;
+  var found=null; allScoreCardItems().forEach(function(it){ if(it.id===k) found=it.name; });
+  if(found) return found;
+  var rf=null; (game.resources||[]).forEach(function(r){ if(r.id===k) rf=r.name; });
+  if(rf) return rf;
+  var pf=null; (game.products||defaultProducts()).forEach(function(p){ if(p.id===k) pf=p.name; });
+  return pf||k;
+}
+function cardCatClass(k){
+  if(NUMS.indexOf(k)>=0||OPS.indexOf(k)>=0) return "muted";
+  var found=null; allScoreCardItems().forEach(function(it){ if(it.id===k) found="sc"+((it.catIdx%4)+1); });
+  if(found) return found;
+  var rr=null; (game.resources||[]).forEach(function(r){ if(r.id===k) rr=catClassByName(r.name); });
+  if(rr) return rr;
+  var pr=null; (game.products||defaultProducts()).forEach(function(p){ if(p.id===k) pr=catClassByName(p.name); });
+  return pr||"muted";
+}
+function isResourceId(k,resList){
+  var list=resList||(game&&game.resources)||[]; var found=false;
+  list.forEach(function(r){ if(r.id===k) found=true; });
+  return found;
+}
+function isProductId(k,prodList){
+  var list=prodList||(game&&game.products)||[]; var found=false;
+  list.forEach(function(p){ if(p.id===k) found=true; });
+  return found;
+}
+function resNameById(rid){ var f=null; (game.resources||[]).forEach(function(r){ if(r.id===rid) f=r; }); return f?f.name:rid; }
+function prodById(pid){ var f=null; (game.products||defaultProducts()).forEach(function(p){ if(p.id===pid) f=p; }); return f; }
+function prodNameById(pid){ var p=prodById(pid); return p?p.name:pid; }
+function recipeText(prod){
+  var parts=[]; var res=(prod.recipe&&prod.recipe.res)||{}, pr=(prod.recipe&&prod.recipe.prod)||{};
+  for(var rid in res){ parts.push(resNameById(rid)+" "+res[rid]); }
+  for(var pid in pr){ parts.push(prodNameById(pid)+" "+pr[pid]); }
+  return parts.join(", ");
+}
+function recipeItemsList(prod){
+  var parts=[]; var res=(prod.recipe&&prod.recipe.res)||{}, pr=(prod.recipe&&prod.recipe.prod)||{};
+  for(var rid in res){ parts.push(resNameById(rid)+" "+res[rid]+"개"); }
+  for(var pid in pr){ parts.push(prodNameById(pid)+" "+pr[pid]+"개"); }
+  return parts.join(", ");
+}
+function canAffordProduct(g,prod){
+  var needRes=(prod.recipe&&prod.recipe.res)||{}, needProd=(prod.recipe&&prod.recipe.prod)||{};
+  var redeemed=g.redeemed||{};
+  for(var rid in needRes){ if((redeemed[rid]||0)<needRes[rid]) return false; }
+  for(var pid in needProd){ if(((g.products&&g.products[pid])||0)<needProd[pid]) return false; }
+  return true;
+}
+function productChipsHTML(countsObj){
+  var products=game.products||defaultProducts();
+  var h='<div class="prod-row">';
+  products.forEach(function(p){ var n=(countsObj&&countsObj[p.id])||0;
+    h+='<button type="button" class="prod-chip '+catClassByName(p.name)+'" data-pinfo="'+esc(p.id)+'">'+esc(p.name)+'<span class="cc">'+n+'</span></button>';
+  });
+  return h+'</div>';
+}
+function showProductInfoPopup(pid){
+  var p=prodById(pid); if(!p) return;
+  var ov=document.createElement("div"); ov.className="overlay";
+  ov.innerHTML='<div class="modal" style="max-width:340px"><h3>'+esc(p.name)+'</h3>'+
+    '<p class="sub2" style="margin-bottom:2px">필요한 재료</p>'+
+    '<p style="font-weight:800;font-size:15px;margin:0">'+esc(recipeText(p))+'</p>'+
+    '<div class="foot"><button class="btn ghost" id="piClose">닫기</button></div></div>';
+  document.body.appendChild(ov);
+  ov.querySelector("#piClose").onclick=function(){ document.body.removeChild(ov); };
+  ov.onclick=function(e){ if(e.target===ov) document.body.removeChild(ov); };
+}
+function wireProductChips(root){
+  Array.prototype.forEach.call(root.querySelectorAll("[data-pinfo]"),function(b){ b.onclick=function(){ showProductInfoPopup(b.getAttribute("data-pinfo")); }; });
+}
+
+function renderCurrent(){
+  if(!role){ return; }
+  if(role==="teacher") renderTeacher(); else renderGroup();
+}
+
+/* ---------------- 교사 화면 ---------------- */
+function renderTeacher(){
+  if(!game) return;
+  armMsgAutoClear("trade",tradeMsg,function(){ tradeMsg=null; });
+  var s=$("screen"); var h=topbar("교사 화면");
+
+  // 관리자 패널
+  h+=boardHTML();
+  h+='<div class="panel admin">'+
+     '<div class="ctl-row"><div style="font-weight:800;font-size:18px;margin-right:auto">카드 배분 <span style="font-weight:600;color:var(--muted);font-size:14px">· 설정된 가중치에 따라 랜덤 배분</span></div>'+
+        '<button class="btn ghost slim" id="tSettings">⚙ 설정</button>'+
+        '<button class="btn ghost slim" id="tRecipeSettings">🔧 교환조건</button>'+
+        '<button class="btn ghost slim" id="tScoreSettings">🏆 점수 계산</button>'+
+        '<button class="btn danger slim" id="tResetCards">카드·자원 초기화</button>'+
+        '<button class="btn danger slim" id="tDelete">게임 삭제</button></div>'+
+     '<div class="ctl-row" style="margin-top:14px">'+
+        '<div class="field"><label>모둠 선택</label><select class="num-in" id="distGroup">'+
+          game.groups.map(function(g,i){return '<option value="'+i+'">'+esc(g.name)+'</option>';}).join("")+'</select></div>'+
+        '<div class="field"><label>장수</label><input class="num-in" id="distN" type="number" min="1" value="5" inputmode="numeric"></div>'+
+        '<button class="btn" id="distOne">이 모둠에 배분</button>'+
+        '<div class="divider"></div>'+
+        '<div class="field"><label>모든 모둠에</label><input class="num-in" id="distAllN" type="number" min="1" value="5" inputmode="numeric"></div>'+
+        '<button class="btn ore" id="distAll">전체 모둠에 배분</button>'+
+     '</div>'+
+     '<p class="hint">모든 기기에 실시간 반영돼요.</p>'+
+     settingsPanelHTML()+
+     '</div>';
+
+  if(recipeSettingsOpen) h+=recipeSettingsPanelHTML();
+  if(scoreSettingsOpen) h+=scoreSettingsPanelHTML();
+
+  // 진행 중 교환
+  var pendAll=trades.filter(function(t){return t.status==="pending";});
+  var pendCards=pendAll.filter(function(t){return t.kind!=="product";});
+  var pendProducts=pendAll.filter(function(t){return t.kind==="product";});
+  h+='<div class="panel"><div class="block-label">진행 중 교환 ('+pendCards.length+')</div>'+
+     (tradeMsg?'<div class="msg '+(tradeMsg.ok?"ok":"bad")+'" style="margin-bottom:12px">'+esc(tradeMsg.text)+'</div>':'');
+  if(!pendCards.length) h+='<p class="hint" style="margin:0">아직 진행 중인 교환이 없어요.</p>';
+  else pendCards.forEach(function(t){
+    h+='<div class="offer"><div class="ohead">'+esc(t.fromName)+' → '+esc(t.toName)+'</div>'+
+       '<div class="oline">주는 카드: '+miniCardsHTML(t.give)+'</div>'+
+       '<div class="oline">받고 싶은 카드: '+miniCardsHTML(t.want)+'</div>'+
+       '<div class="oact"><button class="btn ore slim" data-acc="'+esc(t.id)+'">수락</button>'+
+       '<button class="btn danger slim" data-dec="'+esc(t.id)+'">거절</button></div></div>';
+  });
+  h+='</div>';
+
+  // 생산품 교환 신청목록
+  h+='<div class="panel"><div class="block-label">생산품 교환 신청목록 ('+pendProducts.length+')</div>';
+  if(!pendProducts.length) h+='<p class="hint" style="margin:0">아직 들어온 생산품 신청이 없어요.</p>';
+  else pendProducts.forEach(function(t){
+    var pr=prodById(t.productId);
+    h+='<div class="offer"><div class="ohead">'+esc(t.fromName)+' → 생산품 제작 신청: '+esc(t.productName)+'</div>'+
+       (pr?'<div class="oline">필요 재료: '+esc(recipeText(pr))+'</div>':'')+
+       '<div class="oact"><button class="btn ore slim" data-paccept="'+esc(t.id)+'">수락</button>'+
+       '<button class="btn danger slim" data-dec="'+esc(t.id)+'">거절</button></div></div>';
+  });
+  h+='</div>';
+
+  // 전체 모둠 개요
+  h+='<div class="block-label" style="margin:4px 2px 12px">모둠 현황</div><div class="groups compact">';
+  game.groups.forEach(function(g,i){
+    var redeemedObj=g.redeemed||{};
+    var pendingTotal=game.resources.reduce(function(sum,r){ return sum+(g.resources[r.id]||0); },0);
+    h+='<div class="gcard"><div class="gtop"><span class="badge">'+(i+1)+'</span><span class="gn">'+esc(g.name)+'</span></div>'+
+       '<div class="gbody"><p class="mini-label">보유 카드</p>'+cardsGridHTML(g.cards)+
+       '<p class="mini-label" style="margin-top:6px">생성한 자원</p>'+resChipsHTML(g.resources)+
+       '<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:6px">'+
+         '<p class="mini-label" style="margin:0">실물 카드 교환 완료</p>'+
+         (pendingTotal>0?'<button class="btn ore slim" data-redeem="'+i+'">교환 확인 · 대기 '+pendingTotal+'개</button>':'')+
+       '</div>'+
+       resChipsHTML(redeemedObj)+
+       '<p class="mini-label" style="margin-top:6px">생산품 카드 생성</p>'+productChipsHTML(g.products)+
+       '</div></div>';
+  });
+  h+='</div>';
+
+  s.innerHTML=h;
+  wireProductChips(s);
+
+  $("leaveBtn").onclick=leave;
+  $("tSettings").onclick=function(){ settingsOpen=!settingsOpen; renderTeacher(); };
+  $("tRecipeSettings").onclick=function(){ recipeSettingsOpen=!recipeSettingsOpen; renderTeacher(); };
+  $("tScoreSettings").onclick=function(){ scoreSettingsOpen=!scoreSettingsOpen; renderTeacher(); };
+  $("distOne").onclick=function(){ var i=+$("distGroup").value,n=+$("distN").value; if(!(n>=1))return alert("장수를 1 이상으로."); doDistribute(i,n); };
+  $("distAll").onclick=function(){ var n=+$("distAllN").value; if(!(n>=1))return alert("장수를 1 이상으로."); doDistribute("all",n); };
+  $("tResetCards").onclick=doResetCards;
+  $("tDelete").onclick=doDeleteGame;
+  Array.prototype.forEach.call(s.querySelectorAll("[data-acc]"),function(b){ b.onclick=function(){ acceptTrade(b.dataset.acc); }; });
+  Array.prototype.forEach.call(s.querySelectorAll("[data-paccept]"),function(b){ b.onclick=function(){ acceptProductRequest(b.dataset.paccept); }; });
+  Array.prototype.forEach.call(s.querySelectorAll("[data-dec]"),function(b){ b.onclick=function(){ setTradeStatus(b.dataset.dec,"declined"); }; });
+  Array.prototype.forEach.call(s.querySelectorAll("[data-redeem]"),function(b){ b.onclick=function(){ doRedeemGroup(+b.dataset.redeem); }; });
+  if(settingsOpen) wireSettings();
+  if(recipeSettingsOpen) wireRecipeSettings();
+  if(scoreSettingsOpen) wireScoreSettings();
+}
+
+function scoreCardsEditorHTML(cats){
+  var h='';
+  cats.forEach(function(cat,ci){
+    h+='<div class="score-row">';
+    cat.items.forEach(function(it){
+      h+='<div class="score-cell c'+((ci%4)+1)+'" data-sid="'+esc(it.id)+'"><span class="scn">'+esc(it.name)+'</span><input class="scp" type="number" min="0" value="'+it.points+'" inputmode="numeric"><span class="scu">점</span></div>';
+    });
+    h+='</div>';
+  });
+  return h;
+}
+function scoreSettingsPanelHTML(){
+  var cats=game.scoreCategories||defaultScoreCategories();
+  return '<div class="panel">'+
+    '<div class="block-label" style="margin-top:0">점수 계산 활성화</div>'+
+    '<button class="btn '+(game.scoreEnabled?"ore":"ghost")+' slim" id="toggleScore">점수 계산 활성화 버튼 · 지금 '+(game.scoreEnabled?"켜짐":"꺼짐")+'</button>'+
+    '<p class="hint">켜면 모든 모둠 화면에 점수 계산 버튼이 나타나요. 누르면 모든 태블릿에 바로 반영돼요.</p>'+
+    '<div class="block-label" style="margin-top:18px">카드별 점수 설정</div>'+
+    '<div id="scoreEditor">'+scoreCardsEditorHTML(cats)+'</div>'+
+    '<div class="save-row"><button class="btn" id="saveScoreSettings">설정 저장</button><button class="btn ghost" id="cancelScoreSettings">닫기</button></div>'+
+    '<div class="block-label" style="margin-top:18px">모둠별 점수 계산 결과 <span style="font-weight:600;color:var(--muted)">· 실물 카드 교환 완료·생산품 카드 갯수 기준 실시간 반영</span></div>'+
+    game.groups.map(function(g){
+      var liveCounts=liveScoreCounts(g);
+      var live=computeScore(cats,liveCounts);
+      if(g.scoreCounts && !scoreCountsMatchCards(g.scoreCounts,liveCounts,cats)){
+        var declared=computeScore(cats,g.scoreCounts);
+        return '<p class="score-summary" style="color:var(--err)">'+esc(g.name)+': 기본 점수 '+live.base+'점 + 의식주보너스 '+live.lifeBonus+'점 + 영역보너스 '+live.bonus+'점 − 영역벌점 '+live.penalty+'점 = 총 '+live.total+'점(모둠에서 수정함, 점수 '+declared.total+'점)</p>';
+      }
+      return '<p class="score-summary">'+esc(g.name)+': 기본 점수 '+live.base+'점 + 의식주보너스 '+live.lifeBonus+'점 + 영역보너스 '+live.bonus+'점 − 영역벌점 '+live.penalty+'점 = 총 '+live.total+'점</p>';
+    }).join("")+
+    '<div class="block-label" style="margin-top:18px">모둠 점수 수정 허용</div>'+
+    '<button class="btn '+(scoreEditAllowed()?"ore":"ghost")+' slim" id="toggleScoreEdit">모둠 점수 수정 허용 · 지금 '+(scoreEditAllowed()?"켜짐":"꺼짐")+'</button>'+
+    '<p class="hint">끄면 모둠 화면의 점수 계산 팝업에서 카드 개수를 직접 조정할 수 없고, 자동으로 채워진 값 그대로만 계산돼요.</p>'+
+    '</div>';
+}
+function scoreEditAllowed(){ return game.scoreEditEnabled!==false; }
+function wireScoreSettings(){
+  $("toggleScore").onclick=function(){
+    gameRef().update({scoreEnabled:!game.scoreEnabled}).catch(function(){ alert("점수 계산 활성화 변경에 실패했어요."); });
+  };
+  $("cancelScoreSettings").onclick=function(){ scoreSettingsOpen=false; renderTeacher(); };
+  $("saveScoreSettings").onclick=saveScoreSettings;
+  $("toggleScoreEdit").onclick=function(){
+    gameRef().update({scoreEditEnabled:!scoreEditAllowed()}).catch(function(){ alert("모둠 점수 수정 허용 변경에 실패했어요."); });
+  };
+}
+function saveScoreSettings(){
+  var cats=game.scoreCategories||defaultScoreCategories();
+  var newCats=cats.map(function(cat){
+    return {id:cat.id,items:cat.items.map(function(it){
+      var input=$("scoreEditor").querySelector('[data-sid="'+it.id+'"] .scp');
+      var v=Number(input.value); if(isNaN(v)||v<0) v=0;
+      return {id:it.id,name:it.name,points:v};
+    })};
+  });
+  gameRef().update({scoreCategories:newCats}).then(function(){ scoreSettingsOpen=false; renderTeacher(); }).catch(function(){ alert("점수 설정 저장에 실패했어요."); });
+}
+
+function ingredientOptionsHTML(excludePid){
+  var h='';
+  game.resources.forEach(function(r){ h+='<option value="res:'+esc(r.id)+'">[자원] '+esc(r.name)+'</option>'; });
+  (game.products||defaultProducts()).forEach(function(p){ if(p.id!==excludePid) h+='<option value="prod:'+esc(p.id)+'">[생산품] '+esc(p.name)+'</option>'; });
+  return h;
+}
+function recipeRowsHTML(prod){
+  var rows='';
+  var res=(prod.recipe&&prod.recipe.res)||{}, pr=(prod.recipe&&prod.recipe.prod)||{};
+  for(var rid in res){ rows+='<div class="recipe-row" data-kind="res" data-rid="'+esc(rid)+'"><span class="rname">'+esc(resNameById(rid))+'</span><input class="num-in rqty" type="number" min="1" value="'+res[rid]+'" style="width:70px"><button class="del" type="button">×</button></div>'; }
+  for(var pid in pr){ rows+='<div class="recipe-row" data-kind="prod" data-rid="'+esc(pid)+'"><span class="rname">'+esc(prodNameById(pid))+'</span><input class="num-in rqty" type="number" min="1" value="'+pr[pid]+'" style="width:70px"><button class="del" type="button">×</button></div>'; }
+  return rows;
+}
+function recipeSettingsPanelHTML(){
+  var products=game.products||defaultProducts();
+  var h='<div class="panel"><div class="block-label" style="margin-top:0">생산품 교환 조건(재료) 설정</div>'+
+    '<p class="hint" style="margin-top:0">각 생산품을 만들 때 필요한 자원·생산품 재료를 자유롭게 바꿀 수 있어요.</p>'+
+    '<div class="recipe-2col">';
+  products.forEach(function(p){
+    h+='<div class="recipe-block">'+
+       '<div class="block-label" style="margin-top:0">'+esc(p.name)+'</div>'+
+       '<div class="recipe-rows" data-pid="'+esc(p.id)+'">'+recipeRowsHTML(p)+'</div>'+
+       '<div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-top:8px">'+
+         '<select class="num-in recipe-add-sel" data-pid="'+esc(p.id)+'">'+ingredientOptionsHTML(p.id)+'</select>'+
+         '<input class="num-in recipe-add-qty" type="number" min="1" value="1" style="width:70px">'+
+         '<button class="btn ghost slim recipe-add-btn" type="button" data-pid="'+esc(p.id)+'">+ 재료 추가</button>'+
+       '</div></div>';
+  });
+  h+='</div>'+
+    '<div class="save-row"><button class="btn" id="saveRecipeSettings">설정 저장</button><button class="btn ghost" id="cancelRecipeSettings">닫기</button></div>'+
+    '<div class="warn" id="recipeWarn"></div>'+
+    '</div>';
+  return h;
+}
+function wireRecipeSettings(){
+  Array.prototype.forEach.call($("screen").querySelectorAll(".recipe-row .del"),function(b){ b.onclick=function(){ b.closest(".recipe-row").remove(); }; });
+  Array.prototype.forEach.call($("screen").querySelectorAll(".recipe-add-btn"),function(b){
+    b.onclick=function(){
+      var pid=b.getAttribute("data-pid");
+      var container=$("screen").querySelector('.recipe-rows[data-pid="'+pid+'"]');
+      var sel=$("screen").querySelector('.recipe-add-sel[data-pid="'+pid+'"]');
+      var qtyInput=sel.parentElement.querySelector(".recipe-add-qty");
+      var parts=sel.value.split(":"); var kind=parts[0], rid=parts[1];
+      var qty=Math.max(1,Number(qtyInput.value)||1);
+      var existing=container.querySelector('.recipe-row[data-kind="'+kind+'"][data-rid="'+rid+'"]');
+      if(existing){ existing.querySelector(".rqty").value=qty; return; }
+      var name=kind==="res"?resNameById(rid):prodNameById(rid);
+      var div=document.createElement("div"); div.className="recipe-row"; div.dataset.kind=kind; div.dataset.rid=rid;
+      div.innerHTML='<span class="rname">'+esc(name)+'</span><input class="num-in rqty" type="number" min="1" value="'+qty+'" style="width:70px"><button class="del" type="button">×</button>';
+      div.querySelector(".del").onclick=function(){ div.remove(); };
+      container.appendChild(div);
+    };
+  });
+  $("cancelRecipeSettings").onclick=function(){ recipeSettingsOpen=false; renderTeacher(); };
+  $("saveRecipeSettings").onclick=saveRecipeSettings;
+}
+function saveRecipeSettings(){
+  var products=game.products||defaultProducts();
+  var newProducts=products.map(function(p){
+    var container=$("screen").querySelector('.recipe-rows[data-pid="'+p.id+'"]');
+    var res={},prod={};
+    Array.prototype.forEach.call(container.querySelectorAll(".recipe-row"),function(row){
+      var kind=row.dataset.kind, rid=row.dataset.rid;
+      var qty=Math.max(1,Number(row.querySelector(".rqty").value)||1);
+      if(kind==="res") res[rid]=qty; else prod[rid]=qty;
+    });
+    return {id:p.id,name:p.name,category:p.category,recipe:{res:res,prod:prod}};
+  });
+  var warn=$("recipeWarn"); warn.textContent="";
+  var empty=newProducts.filter(function(p){ return Object.keys(p.recipe.res).length+Object.keys(p.recipe.prod).length===0; });
+  if(empty.length){ warn.textContent="다음 생산품은 재료가 1개 이상 있어야 해요: "+empty.map(function(p){return p.name;}).join(", "); return; }
+  gameRef().update({products:newProducts}).then(function(){ recipeSettingsOpen=false; renderTeacher(); }).catch(function(){ alert("교환 조건 저장에 실패했어요."); });
+}
+
+function settingsPanelHTML(){
+  if(!settingsOpen) return '';
+  var resRows=game.resources.map(function(r){
+    return '<div class="res-edit-row" data-id="'+esc(r.id)+'"><input class="rname" value="'+esc(r.name)+'" placeholder="자원 이름"><input class="rtarget" type="number" value="'+r.target+'" inputmode="numeric" placeholder="목표"><button class="del" type="button">×</button></div>';
+  }).join("");
+  var wCells=ALL.map(function(k){ var isNum=NUMS.indexOf(k)>=0;
+    return '<div class="wcell '+(isNum?"isnum":"isop")+'"><span class="wg">'+esc(k)+'</span><input type="number" min="0" step="1" data-card="'+esc(k)+'" value="'+(game.weights[k]!=null?game.weights[k]:1)+'" inputmode="numeric"></div>';
+  }).join("");
+  return '<div class="settings open">'+
+    '<div class="block-label" style="margin-top:0">힌트 설정</div>'+
+    '<button class="btn '+(game.hintsEnabled?"ore":"ghost")+' slim" id="toggleHints">힌트 주기: '+(game.hintsEnabled?"켜짐 (계산 값을 보여줘요)":"꺼짐 (틀렸다고만 알려줘요)")+'</button>'+
+    '<p class="hint">"수식으로 자원 만들기"에서 계산이 틀렸을 때 학생에게 실제 계산 값을 보여줄지 정해요. 누르면 모든 태블릿에 바로 반영돼요.</p>'+
+    '<div class="settings-grid">'+
+    '<div><div class="block-label">자원 목록 편집 <span style="font-weight:600;color:var(--muted)">· 목표 숫자는 서로 달라야 해요</span></div>'+
+      '<div id="resEditor">'+resRows+'</div>'+
+      '<div style="display:flex;gap:6px;flex-wrap:nowrap;align-items:center;margin-top:6px;overflow-x:auto;padding-bottom:2px">'+
+        '<button class="btn ghost slim" style="flex:none;white-space:nowrap" id="addRes">＋ 자원 추가</button>'+
+        '<button class="btn ghost slim" style="flex:none;white-space:nowrap" id="randomizeTargets">🎲 목표 숫자 무작위 재설정</button>'+
+        '<div class="divider" style="flex:none"></div>'+
+        '<span class="hint" style="margin:0;flex:none;white-space:nowrap">주기적 재설정</span>'+
+        '<input class="num-in" id="retargetMinutes" type="number" min="1" value="'+(game.retargetMinutes>0?game.retargetMinutes:10)+'" inputmode="numeric" style="width:52px;flex:none;padding:6px">'+
+        '<span class="hint" style="margin:0;flex:none;white-space:nowrap">분마다</span>'+
+        '<button class="btn '+(game.retargetMinutes>0?"ore":"ghost")+' slim" style="flex:none;white-space:nowrap" id="toggleRetarget">'+(game.retargetMinutes>0?"끄기":"켜기")+'</button>'+
+      '</div>'+
+      (game.retargetMinutes>0?'<p class="hint">'+game.retargetMinutes+'분마다 목표 숫자를 자동으로 재설정하고 저장해요(교사 화면이 열려 있어야 해요). 다음 재설정까지: <span id="retargetCountdown">계산 중…</span></p>':'')+
+      '</div>'+
+    '<div><div class="block-label">모둠 수</div><div class="ctl-row" style="margin-bottom:20px"><input class="num-in" id="setGroupCount" type="number" min="1" max="12" value="'+game.groupCount+'" inputmode="numeric"><span class="hint" style="margin:0;align-self:center">1 ~ 12개</span></div>'+
+      '<div class="block-label">배분 비율(가중치)</div><div class="weights-grid" id="weightsGrid">'+wCells+'</div>'+
+      '<button class="btn ghost slim" id="weightsReset" style="margin-top:10px">비율 모두 1로</button></div>'+
+    '</div><div class="warn" id="settingsWarn"></div>'+
+    '<div class="save-row"><button class="btn" id="saveSettings">설정 저장</button><button class="btn ghost" id="cancelSettings">닫기</button></div></div>';
+}
+function wireSettings(){
+  $("toggleHints").onclick=function(){
+    gameRef().update({hintsEnabled:!game.hintsEnabled}).catch(function(){ alert("힌트 설정 변경에 실패했어요."); });
+  };
+  Array.prototype.forEach.call($("resEditor").querySelectorAll(".del"),function(b){ b.onclick=function(){ b.closest(".res-edit-row").remove(); }; });
+  $("addRes").onclick=function(){
+    var div=document.createElement("div"); div.className="res-edit-row"; div.dataset.id="new"+Date.now()+Math.floor(Math.random()*1000);
+    div.innerHTML='<input class="rname" placeholder="자원 이름"><input class="rtarget" type="number" inputmode="numeric" placeholder="목표"><button class="del" type="button">×</button>';
+    div.querySelector(".del").onclick=function(){ div.remove(); };
+    $("resEditor").appendChild(div);
+  };
+  $("randomizeTargets").onclick=function(){
+    var rows=$("resEditor").querySelectorAll(".res-edit-row");
+    if(!rows.length) return;
+    var targets=randomUniqueTargets(rows.length,2,90);
+    Array.prototype.forEach.call(rows,function(row,i){ row.querySelector(".rtarget").value=targets[i]; });
+  };
+  $("weightsReset").onclick=function(){ Array.prototype.forEach.call($("weightsGrid").querySelectorAll("input"),function(i){i.value=1;}); };
+  $("toggleRetarget").onclick=function(){
+    if(game.retargetMinutes>0){
+      gameRef().update({retargetMinutes:0,retargetNextAt:null}).catch(function(){ alert("주기적 재설정 변경에 실패했어요."); });
+      return;
+    }
+    var n=Math.floor(Number($("retargetMinutes").value));
+    if(!(n>=1)) return alert("분은 1 이상으로 입력해 주세요.");
+    gameRef().update({retargetMinutes:n,retargetNextAt:Date.now()+n*60000}).catch(function(){ alert("주기적 재설정 변경에 실패했어요."); });
+  };
+  $("cancelSettings").onclick=function(){ settingsOpen=false; renderTeacher(); };
+  $("saveSettings").onclick=saveSettings;
+}
+
+/* ---------------- 교사 액션 ---------------- */
+function doDistribute(idxOrAll,n){
+  db.runTransaction(function(tx){
+    return tx.get(gameRef()).then(function(snap){
+      var data=snap.data(); var targets=(idxOrAll==="all")?data.groups.map(function(_,i){return i;}):[idxOrAll];
+      var any=false;
+      targets.forEach(function(i){ for(var c=0;c<n;c++){ var card=pickCard(data.weights); if(card){ data.groups[i].cards[card]++; any=true; } } });
+      if(!any) throw new Error("NOWEIGHT");
+      tx.update(gameRef(),{groups:data.groups});
+    });
+  }).catch(function(e){ if(String(e.message).indexOf("NOWEIGHT")>=0) alert("배분 비율이 모두 0이에요. 설정에서 조절해 주세요."); else alert("배분에 실패했어요. 다시 시도해 주세요."); });
+}
+function saveSettings(){
+  var warn=$("settingsWarn"); warn.textContent="";
+  var gc=parseInt($("setGroupCount").value,10);
+  if(isNaN(gc)||gc<1||gc>12){ warn.textContent="모둠 수는 1~12 사이로 입력해 주세요."; return; }
+  var rows=$("resEditor").querySelectorAll(".res-edit-row"), newRes=[], seen={}, ok=true, msg="", counter=(game.nextId||1);
+  Array.prototype.forEach.call(rows,function(row){
+    var name=row.querySelector(".rname").value.trim(), tRaw=row.querySelector(".rtarget").value.trim();
+    if(name===""&&tRaw==="") return;
+    if(name===""){ ok=false; msg="자원 이름을 비워둘 수 없어요."; return; }
+    if(tRaw===""){ ok=false; msg="‘"+name+"’의 목표 숫자를 입력해 주세요."; return; }
+    var tv=Number(tRaw); if(isNaN(tv)){ ok=false; msg="‘"+name+"’의 목표 숫자가 숫자가 아니에요."; return; }
+    if(seen[String(tv)]){ ok=false; msg="목표 숫자가 중복됐어요: "+tv; return; } seen[String(tv)]=true;
+    var id=row.dataset.id; if(id.indexOf("new")===0){ id="r"+(counter++); }
+    newRes.push({id:id,name:name,target:tv});
+  });
+  if(!ok){ warn.textContent=msg; return; }
+  if(!newRes.length){ warn.textContent="자원이 최소 1개는 있어야 해요."; return; }
+  var newW={}; Array.prototype.forEach.call($("weightsGrid").querySelectorAll("input"),function(i){ var v=Number(i.value); if(isNaN(v)||v<0)v=0; newW[i.dataset.card]=v; });
+
+  db.runTransaction(function(tx){
+    return tx.get(gameRef()).then(function(snap){
+      var data=snap.data();
+      if(gc<data.groups.length){ if(!confirm("모둠 수를 "+data.groups.length+"→"+gc+"로 줄이면 마지막 모둠들의 카드·자원이 삭제돼요. 진행할까요?")) throw new Error("CANCEL"); data.groups.length=gc; }
+      else { while(data.groups.length<gc) data.groups.push(makeGroup(data.groups.length,newRes,data.products||defaultProducts(),data.scoreCategories||defaultScoreCategories())); }
+      data.groups.forEach(function(g){ var res={},red={}; newRes.forEach(function(r){ res[r.id]=g.resources[r.id]||0; red[r.id]=(g.redeemed&&g.redeemed[r.id])||0; }); g.resources=res; g.redeemed=red; });
+      data.resources=newRes; data.weights=newW; data.groupCount=gc; data.nextId=counter;
+      tx.update(gameRef(),{groups:data.groups,resources:newRes,weights:newW,groupCount:gc,nextId:counter});
+    });
+  }).then(function(){ settingsOpen=false; renderTeacher(); }).catch(function(e){ if(String(e.message).indexOf("CANCEL")<0) alert("설정 저장에 실패했어요."); });
+}
+function doResetCards(){
+  if(!confirm("모든 모둠의 카드·자원을 0으로 되돌릴까요?(자원 목록·비율 설정은 유지)")) return;
+  db.runTransaction(function(tx){
+    return tx.get(gameRef()).then(function(snap){
+      var data=snap.data();
+      data.groups.forEach(function(g){
+        g.cards=emptyCards(data.scoreCategories||defaultScoreCategories());
+        var res={},red={}; data.resources.forEach(function(r){res[r.id]=0; red[r.id]=0;}); g.resources=res; g.redeemed=red;
+        var prod={}; (data.products||defaultProducts()).forEach(function(p){ prod[p.id]=0; }); g.products=prod;
+      });
+      tx.update(gameRef(),{groups:data.groups});
+    });
+  }).then(function(){
+    return gameRef().collection("trades").get().then(function(qs){ var batch=db.batch(); qs.forEach(function(d){batch.delete(d.ref);}); return batch.commit(); });
+  }).catch(function(){ alert("초기화에 실패했어요."); });
+}
+function doDeleteGame(){
+  if(!confirm("이 게임을 완전히 삭제할까요? 모든 모둠 기기의 연결이 끊깁니다.")) return;
+  gameRef().collection("trades").get().then(function(qs){ var batch=db.batch(); qs.forEach(function(d){batch.delete(d.ref);}); return batch.commit(); })
+    .then(function(){ return gameRef().delete(); }).then(leave).catch(function(){ alert("삭제에 실패했어요."); });
+}
+
+/* ---------------- 모둠 화면 ---------------- */
+function renderGroup(){
+  if(!game) return;
+  armMsgAutoClear("group",groupMsg,function(){ groupMsg=null; });
+  armMsgAutoClear("trade",tradeMsg,function(){ tradeMsg=null; });
+  armMsgAutoClear("product",productMsg,function(){ productMsg=null; });
+  if(myIdx>=game.groups.length){ $("screen").innerHTML=topbar("모둠")+'<div class="panel"><p style="font-weight:700">이 모둠은 게임에서 제거됐어요. 나가기 후 다시 참여해 주세요.</p></div>'; $("leaveBtn").onclick=leave; return; }
+  var g=game.groups[myIdx];
+  var s=$("screen"); var h=topbar(g.name);
+  h+=boardHTML();
+
+  var redeemedObj=g.redeemed||{};
+  var pendingTotal=game.resources.reduce(function(sum,r){ return sum+(g.resources[r.id]||0); },0);
+
+  h+='<div class="group-grid">';
+
+  // 내 카드 + 자원 + 실물 카드 교환 + 생산품 카드 생성
+  h+='<div class="panel"><div class="block-label" style="justify-content:space-between"><span>우리 모둠 카드</span></div>'+cardsGridHTML(g.cards)+
+     '<p class="mini-label" style="margin-top:14px">생성한 자원</p>'+resChipsHTML(g.resources)+
+     '<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:14px">'+
+       '<p class="mini-label" style="margin:0">실물 카드 교환 완료</p>'+
+       (pendingTotal>0?'<button class="btn ore slim" id="redeemBtn">교환 확인 · 대기 '+pendingTotal+'개</button>':'')+
+     '</div>'+
+     resChipsHTML(redeemedObj)+
+     '<p class="mini-label" style="margin-top:16px">생산품 카드 생성</p>'+productChipsHTML(g.products)+
+     '</div>';
+
+  // 수식으로 자원 만들기
+  h+='<div class="panel"><div class="block-label">수식으로 자원 만들기</div>'+
+     '<p class="hint" style="margin-top:0">사칙연산 <b>+, −, ×, ÷</b> 를 모두 한 번씩은 사용해서 만든 식이어야 해요. 괄호 <b>( )</b> 는 써도 되고 안 써도 돼요. 계산 결과가 어떤 자원의 목표 숫자와 정확히 같으면 그 자원이 만들어져요.</p>'+
+     '<input class="formula-in" id="fIn" type="text" inputmode="none" readonly placeholder="예)  (3+2)×4÷2−1" value="'+esc(formula)+'">'+
+     '<div class="keypad" id="keypad"></div>'+
+     '<button class="gen-btn" id="genBtn">자원 생성</button>'+
+     (groupMsg?'<div class="msg '+(groupMsg.ok?"ok":"bad")+'">'+esc(groupMsg.text)+'</div>':'')+
+     '</div>';
+
+  h+='</div>';
+
+  // 교환
+  var incoming=trades.filter(function(t){return t.status==="pending"&&t.to===myIdx&&t.kind!=="product";});
+  var outgoing=trades.filter(function(t){return t.status==="pending"&&t.from===myIdx&&t.kind!=="product";});
+  var outgoingProducts=trades.filter(function(t){return t.status==="pending"&&t.from===myIdx&&t.kind==="product";});
+  h+='<div class="panel"><div class="block-label">카드 교환(무역)</div>'+
+     '<button class="btn trade" id="proposeBtn">다른 모둠에 교환 제안하기</button>'+
+     (tradeMsg?'<div class="msg '+(tradeMsg.ok?"ok":"bad")+'" style="margin-top:12px">'+esc(tradeMsg.text)+'</div>':'');
+
+  h+='<p class="mini-label" style="margin-top:16px">받은 제안 ('+incoming.length+')</p>';
+  if(!incoming.length) h+='<p class="hint" style="margin:0">받은 제안이 없어요.</p>';
+  else incoming.forEach(function(t){
+    h+='<div class="offer"><div class="ohead">'+esc(t.fromName)+' 모둠의 제안</div>'+
+       '<div class="oline">받는 카드: '+miniCardsHTML(t.give)+'</div>'+
+       '<div class="oline">주는 카드: '+miniCardsHTML(t.want)+'</div>'+
+       '<div class="oact"><button class="btn ore slim" data-acc="'+esc(t.id)+'">수락</button>'+
+       '<button class="btn danger slim" data-dec="'+esc(t.id)+'">거절</button></div></div>';
+  });
+
+  h+='<p class="mini-label" style="margin-top:16px">보낸 제안 ('+outgoing.length+')</p>';
+  if(!outgoing.length) h+='<p class="hint" style="margin:0">보낸 제안이 없어요.</p>';
+  else outgoing.forEach(function(t){
+    h+='<div class="offer"><div class="ohead">→ '+esc(t.toName)+' 모둠에게</div>'+
+       '<div class="oline">주는 카드: '+miniCardsHTML(t.give)+'</div>'+
+       '<div class="oline">받고 싶은 카드: '+miniCardsHTML(t.want)+'</div>'+
+       '<div class="oact"><button class="btn ghost slim" data-cancel="'+esc(t.id)+'">제안 취소</button></div></div>';
+  });
+  h+='</div>';
+
+  h+='<div class="panel"><div class="block-label">무역센터에서 생산품으로 교환하기</div>'+
+     '<p class="hint" style="margin-top:0">원하는 생산품을 골라 신청하면 무역 센터에서 확인 후 승인해요.</p>'+
+     '<button class="btn ore" id="proposeProductBtn">생산품 선택하기</button>'+
+     (productMsg?'<div class="msg '+(productMsg.ok?"ok":"bad")+'" style="margin-top:12px">'+esc(productMsg.text)+'</div>':'')+
+     '<p class="mini-label" style="margin-top:16px">내 신청 현황 ('+outgoingProducts.length+')</p>'+
+     (outgoingProducts.length?outgoingProducts.map(function(t){
+       return '<div class="offer"><div class="ohead">무역센터에게 → '+esc(t.productName)+' 신청</div>'+
+         '<div class="oact"><button class="btn ghost slim" data-cancel="'+esc(t.id)+'">신청 취소</button></div></div>';
+     }).join(""):'<p class="hint" style="margin:0">신청한 생산품이 없어요.</p>')+
+     '</div>';
+
+  if(game.scoreEnabled){
+    h+='<div class="panel"><div class="block-label">점수 계산</div>'+
+       '<button class="btn ore" id="scoreBtn">점수 계산하기</button></div>';
+  }
+
+  s.innerHTML=h;
+  wireProductChips(s);
+
+  $("leaveBtn").onclick=leave;
+  var fIn=$("fIn");
+  fIn.oninput=function(){ formula=fIn.value; };
+  var pad=$("keypad");
+  var clearAll=document.createElement("button"); clearAll.type="button"; clearAll.className="key clearall"; clearAll.textContent="모두 지우기";
+  clearAll.onclick=function(){ fIn.value=""; formula=""; fIn.focus(); };
+  pad.appendChild(clearAll);
+  var KEYPAD_ROWS=[
+    ["BACK","(",")","+"],
+    ["7","8","9","−"],
+    ["4","5","6","×"],
+    ["1","2","3","÷"]
+  ];
+  KEYPAD_ROWS.forEach(function(row){
+    row.forEach(function(k){
+      var b=document.createElement("button"); b.type="button";
+      if(k==="BACK"){ b.className="key act"; b.textContent="⌫"; b.onclick=function(){ fIn.value=fIn.value.slice(0,-1); formula=fIn.value; fIn.focus(); }; }
+      else{ b.className="key "+(NUMS.indexOf(k)>=0?"n":"o"); b.textContent=k; b.onclick=function(){ fIn.value+=k; formula=fIn.value; fIn.focus(); }; }
+      pad.appendChild(b);
+    });
+  });
+
+  $("genBtn").onclick=doGenerate;
+  if($("redeemBtn")) $("redeemBtn").onclick=function(){ doRedeemGroup(myIdx); };
+  $("proposeBtn").onclick=openTradeModal;
+  $("proposeProductBtn").onclick=openProductRequestModal;
+  if($("scoreBtn")) $("scoreBtn").onclick=openScoreModal;
+  Array.prototype.forEach.call(s.querySelectorAll("[data-acc]"),function(b){ b.onclick=function(){ acceptTrade(b.dataset.acc); }; });
+  Array.prototype.forEach.call(s.querySelectorAll("[data-dec]"),function(b){ b.onclick=function(){ setTradeStatus(b.dataset.dec,"declined"); }; });
+  Array.prototype.forEach.call(s.querySelectorAll("[data-cancel]"),function(b){ b.onclick=function(){ setTradeStatus(b.dataset.cancel,"cancelled"); }; });
+}
+
+/* ---------------- 자원 생성 ---------------- */
+function doGenerate(){
+  var raw=(formula||"").trim();
+  if(!raw){ groupMsg={ok:false,text:"수식을 입력해 주세요."}; return renderGroup(); }
+  var tk=tokenize(normalize(raw));
+  if(tk.error){ groupMsg={ok:false,text:tk.error}; return renderGroup(); }
+  if(!tk.tokens.length){ groupMsg={ok:false,text:"수식을 입력해 주세요."}; return renderGroup(); }
+  var need=countCards(tk.tokens);
+  var ev=evaluate(tk.tokens);
+  if(ev.error){ groupMsg={ok:false,text:ev.error}; return renderGroup(); }
+  var missingOps=["+","−","×","÷"].filter(function(op){ return !need[op]; });
+  if(missingOps.length){ groupMsg={ok:false,text:"사칙연산을 모두 한 번씩은 써야 해요. 아직 안 쓴 연산: "+missingOps.join(" ")}; return renderGroup(); }
+  var match=null; for(var i=0;i<game.resources.length;i++){ if(Math.abs(ev.value-game.resources[i].target)<1e-9){ match=game.resources[i]; break; } }
+  if(!match){
+    groupMsg={ok:false,text: game.hintsEnabled ? ("현재 계산 값은 "+pretty(ev.value)+"이에요. 다시 생각해보세요.") : "계산이 틀렸어요. 다시 생각해 보세요."};
+    return renderGroup();
+  }
+
+  db.runTransaction(function(tx){
+    return tx.get(gameRef()).then(function(snap){
+      var data=snap.data(), gg=data.groups[myIdx], short=[];
+      for(var k in need){ if(need[k]>(gg.cards[k]||0)) short.push("‘"+k+"’ "+(need[k]-(gg.cards[k]||0))+"장"); }
+      if(short.length) throw new Error("SHORT:"+short.join(", "));
+      for(var c in need){ gg.cards[c]-=need[c]; }
+      gg.resources[match.id]=(gg.resources[match.id]||0)+1;
+      tx.update(gameRef(),{groups:data.groups});
+    });
+  }).then(function(){ formula=""; groupMsg={ok:true,text:"성공! "+pretty(ev.value)+" = "+match.name+" 1개를 만들었어요."}; renderGroup(); })
+    .catch(function(e){ var m=String(e.message||e); if(m.indexOf("SHORT:")===0) groupMsg={ok:false,text:"카드가 부족해요 — "+m.slice(6)+" 더 필요해요."}; else groupMsg={ok:false,text:"생성 중 문제가 생겼어요. 다시 시도해 주세요."}; renderGroup(); });
+}
+
+/* ---------------- 실물 카드 교환 ---------------- */
+function doRedeemGroup(idx){
+  db.runTransaction(function(tx){
+    return tx.get(gameRef()).then(function(snap){
+      var data=snap.data(), gg=data.groups[idx], red=gg.redeemed||{};
+      data.resources.forEach(function(r){ red[r.id]=(red[r.id]||0)+(gg.resources[r.id]||0); gg.resources[r.id]=0; });
+      gg.redeemed=red;
+      tx.update(gameRef(),{groups:data.groups});
+    });
+  }).then(function(){ renderCurrent(); }).catch(function(){ alert("교환 확인 처리에 실패했어요."); });
+}
+
+/* ---------------- 점수 계산 ---------------- */
+function liveScoreCounts(g){
+  var cats=game.scoreCategories||defaultScoreCategories();
+  var counts={};
+  cats.forEach(function(cat){
+    cat.items.forEach(function(it){
+      var n=0, r=null, p=null;
+      game.resources.forEach(function(rr){ if(rr.name===it.name) r=rr; });
+      if(r){ n=(g.redeemed&&g.redeemed[r.id])||0; }
+      else{
+        (game.products||defaultProducts()).forEach(function(pp){ if(pp.name===it.name) p=pp; });
+        if(p) n=(g.products&&g.products[p.id])||0;
+      }
+      counts[it.id]=n;
+    });
+  });
+  return counts;
+}
+var LIFE_BONUS_NAMES=["빵","옷","집"];
+var LIFE_BONUS_POINTS=200;
+function hasCountByName(cats,counts,name){
+  var found=false;
+  cats.forEach(function(cat){ cat.items.forEach(function(it){ if(it.name===name && (counts[it.id]||0)>0) found=true; }); });
+  return found;
+}
+function computeScore(cats,counts){
+  var base=0,bonus=0,penalty=0,catDetails=[];
+  cats.forEach(function(cat){
+    var catBase=0,enteredTypes=0,total=cat.items.length;
+    cat.items.forEach(function(it){
+      var c=counts[it.id]||0;
+      catBase+=c*it.points;
+      if(c>0) enteredTypes++;
+    });
+    base+=catBase;
+    var catBonus=0,catPenalty=0;
+    if(enteredTypes===total){ catBonus=100; bonus+=100; }
+    else if(enteredTypes<total/2){ catPenalty=100; penalty+=100; }
+    catDetails.push({enteredTypes:enteredTypes,total:total,catBase:catBase,catBonus:catBonus,catPenalty:catPenalty});
+  });
+  var lifeBonus=LIFE_BONUS_NAMES.every(function(name){ return hasCountByName(cats,counts,name); })?LIFE_BONUS_POINTS:0;
+  return {base:base,bonus:bonus,lifeBonus:lifeBonus,penalty:penalty,total:base+bonus+lifeBonus-penalty,catDetails:catDetails};
+}
+function scoreCountsMatchCards(counts,cardsObj,cats){
+  var match=true;
+  cats.forEach(function(cat){ cat.items.forEach(function(it){ if((counts[it.id]||0)!==((cardsObj&&cardsObj[it.id])||0)) match=false; }); });
+  return match;
+}
+function openScoreModal(){
+  var cats=game.scoreCategories||defaultScoreCategories();
+  var g=game.groups[myIdx];
+  var counts=liveScoreCounts(g);
+  var ov=document.createElement("div"); ov.className="overlay";
+  var editAllowed=scoreEditAllowed();
+  function draw(resultHTML){
+    var rowsHTML=cats.map(function(cat,ci){
+      var cellsHTML=cat.items.map(function(it){
+        var v=counts[it.id]||0;
+        return '<div class="score-cell c'+((ci%4)+1)+'"><span class="scn">'+esc(it.name)+'</span>'+
+          (editAllowed?'<button type="button" data-sminus="'+esc(it.id)+'">−</button>':'')+'<span class="scc">'+v+'</span>'+(editAllowed?'<button type="button" data-splus="'+esc(it.id)+'">＋</button>':'')+'</div>';
+      }).join("");
+      return '<div class="score-row">'+cellsHTML+'</div>';
+    }).join("");
+    ov.innerHTML='<div class="modal"><h3>점수 계산</h3><p class="sub2">'+(editAllowed?"가지고 있는 카드 개수가 자동으로 채워져 있어요. 다르면 직접 조정한 뒤 계산하기를 눌러주세요.":"가지고 있는 카드 개수가 자동으로 채워져 있어요. 선생님이 직접 조정을 막아두어서 이 값 그대로 계산하기만 할 수 있어요.")+'</p>'+
+      rowsHTML+
+      '<div class="foot"><button class="btn ore" id="scCalc">계산하기</button><button class="btn ghost" id="scClose">닫기</button></div>'+
+      (resultHTML||'')+
+      '</div>';
+    Array.prototype.forEach.call(ov.querySelectorAll("[data-sminus]"),function(b){ b.onclick=function(){ var id=b.getAttribute("data-sminus"); counts[id]=Math.max(0,(counts[id]||0)-1); draw(); }; });
+    Array.prototype.forEach.call(ov.querySelectorAll("[data-splus]"),function(b){ b.onclick=function(){ var id=b.getAttribute("data-splus"); counts[id]=(counts[id]||0)+1; draw(); }; });
+    $("scClose").onclick=function(){ document.body.removeChild(ov); };
+    $("scCalc").onclick=function(){
+      var r=computeScore(cats,counts);
+      db.runTransaction(function(tx){
+        return tx.get(gameRef()).then(function(snap){
+          var data=snap.data();
+          data.groups[myIdx].scoreCounts=counts;
+          tx.update(gameRef(),{groups:data.groups});
+        });
+      }).catch(function(){});
+      draw('<div class="score-result">기본 점수 '+r.base+'점 + 의식주보너스 '+r.lifeBonus+'점 + 영역보너스 '+r.bonus+'점 − 영역벌점 '+r.penalty+'점 = 총 '+r.total+'점</div>');
+    };
+  }
+  document.body.appendChild(ov); draw();
+}
+
+/* ---------------- 생산품 교환 신청 ---------------- */
+function openProductRequestModal(){
+  var products=game.products||defaultProducts();
+  var selected=null;
+  var ov=document.createElement("div"); ov.className="overlay";
+  function draw(){
+    var g=game.groups[myIdx];
+    function rowHTML(list){ return '<div class="prod-row">'+list.map(function(p){
+      var afford=canAffordProduct(g,p);
+      return '<button type="button" class="prod-chip '+catClassByName(p.name)+(selected===p.id?" selected":"")+(afford?"":" disabled")+'" '+(afford?"":"disabled")+' data-pick="'+esc(p.id)+'" title="재료: '+esc(recipeText(p))+(afford?"":" (재료 부족)")+'">'+esc(p.name)+'</button>';
+    }).join("")+'</div>'; }
+    var selInfo=selected?('<p class="hint" style="margin-top:10px">필요한 재료: <b>'+esc(recipeText(prodById(selected)))+'</b></p>'):'';
+    ov.innerHTML='<div class="modal"><h3>생산품으로 교환하기</h3><p class="sub2">원하는 생산품을 하나 골라 신청하면 무역센터에서 확인 후 승인해요. 재료가 부족한 생산품은 고를 수 없어요.</p>'+
+      rowHTML(products.slice(0,7))+rowHTML(products.slice(7,14))+selInfo+
+      '<div class="foot"><button class="btn ore" id="prReqSend">신청</button><button class="btn ghost" id="prReqClose">닫기</button></div></div>';
+    Array.prototype.forEach.call(ov.querySelectorAll("[data-pick]:not([disabled])"),function(b){ b.onclick=function(){ selected=b.getAttribute("data-pick"); draw(); }; });
+    $("prReqClose").onclick=function(){ document.body.removeChild(ov); };
+    $("prReqSend").onclick=function(){
+      if(!selected){ alert("생산품을 하나 골라 주세요."); return; }
+      var p=prodById(selected);
+      var latestG=game.groups[myIdx];
+      if(!canAffordProduct(latestG,p)){ alert("재료가 부족해서 신청할 수 없어요. 필요한 재료: "+recipeText(p)); draw(); return; }
+      gameRef().collection("trades").add({
+        kind:"product", from:myIdx, fromName:game.groups[myIdx].name,
+        productId:selected, productName:p.name, status:"pending", createdAt:Date.now()
+      }).then(function(){
+        if(ov.parentNode) document.body.removeChild(ov);
+        productMsg={ok:true,text:p.name+" 교환 신청을 보냈어요. 무역센터에서 확인 후 승인하면 "+p.name+" 카드가 만들어져요."};
+        renderGroup();
+      }).catch(function(){ alert("신청 전송에 실패했어요."); });
+    };
+  }
+  document.body.appendChild(ov); draw();
+}
+
+/* ---------------- 교환 ---------------- */
+function openTradeModal(){
+  var g=game.groups[myIdx];
+  var giveSel={}, wantSel={};
+  var others=game.groups.map(function(gg,i){return {i:i,name:gg.name};}).filter(function(o){return o.i!==myIdx;});
+  var toIdx=others.length?others[0].i:null;
+  if(toIdx===null){ alert("교환할 다른 모둠이 없어요."); return; }
+
+  var ov=document.createElement("div"); ov.className="overlay";
+  var TRADE_KEYS=ALL.concat(game.resources.map(function(r){return r.id;})).concat((game.products||defaultProducts()).map(function(p){return p.id;}));
+  var WANT_KEYS=TRADE_KEYS, GIVE_KEYS=TRADE_KEYS;
+  function ownedCount(k){
+    if(isResourceId(k)) return (g.redeemed&&g.redeemed[k])||0;
+    if(isProductId(k)) return (g.products&&g.products[k])||0;
+    return g.cards[k]||0;
+  }
+  function giveCards(){ return GIVE_KEYS.filter(function(k){return ownedCount(k)>0;}); }
+
+  function draw(){
+    var giveGrid=giveCards().map(function(k){ var cls=cardCatClass(k),c=giveSel[k]||0;
+      return '<div class="stepper '+cls+'"><button data-gminus="'+esc(k)+'">−</button><span class="g">['+esc(cardDisplayName(k))+'카드]</span><span class="c">'+c+'장</span><button data-gplus="'+esc(k)+'">＋</button></div>';
+    }).join("") || '<p class="hint" style="margin:0">가진 카드가 없어요. 아래에서 받고 싶은 카드만 골라 요청할 수 있어요.</p>';
+    var wantGrid=WANT_KEYS.map(function(k){ var cls=cardCatClass(k),c=wantSel[k]||0;
+      return '<div class="stepper '+cls+'"><button data-wminus="'+esc(k)+'">−</button><span class="g">['+esc(cardDisplayName(k))+'카드]</span><span class="c">'+c+'장</span><button data-wplus="'+esc(k)+'">＋</button></div>';
+    }).join("");
+    ov.innerHTML='<div class="modal"><h3>교환 제안</h3><p class="sub2">내가 줄 카드와 받고 싶은 카드를 정해 상대 모둠에 보냅니다.</p>'+
+      '<div class="field" style="margin-bottom:14px"><label>어느 모둠에게?</label><div class="grp-pick compact" id="tmToPick">'+
+        others.map(function(o){return '<button type="button" data-to="'+o.i+'" class="'+(o.i===toIdx?"selected":"")+'">'+esc(o.name)+'</button>';}).join("")+'</div></div>'+
+      '<p class="mini-label">내가 줄 카드 <span style="color:var(--muted);font-weight:600">(가진 만큼만)</span></p><div class="stepgrid">'+giveGrid+'</div>'+
+      '<p class="mini-label" style="margin-top:14px">받고 싶은 카드</p><div class="stepgrid">'+wantGrid+'</div>'+
+      '<div class="foot"><button class="btn trade" id="tmSend">제안 보내기</button><button class="btn ghost" id="tmCancel">닫기</button></div></div>';
+
+    Array.prototype.forEach.call(ov.querySelectorAll("[data-to]"),function(b){ b.onclick=function(){ toIdx=+b.getAttribute("data-to"); draw(); }; });
+    function bind(attr,obj,capFn){ Array.prototype.forEach.call(ov.querySelectorAll("["+attr+"]"),function(b){ b.onclick=function(){ var k=b.getAttribute(attr); var d=attr.indexOf("plus")>=0?1:-1; var nv=(obj[k]||0)+d; var cap=capFn(k); if(nv<0)nv=0; if(nv>cap)nv=cap; obj[k]=nv; draw(); }; }); }
+    bind("data-gplus",giveSel,function(k){return ownedCount(k);}); bind("data-gminus",giveSel,function(k){return ownedCount(k);});
+    bind("data-wplus",wantSel,function(){return 20;}); bind("data-wminus",wantSel,function(){return 20;});
+    $("tmSend").onclick=function(){ sendTrade(toIdx,giveSel,wantSel,ov); };
+    $("tmCancel").onclick=function(){ document.body.removeChild(ov); };
+  }
+  document.body.appendChild(ov); draw();
+}
+function cleanSel(sel){ var o={}; for(var k in sel){ if(sel[k]>0) o[k]=sel[k]; } return o; }
+function sendTrade(toIdx,giveSel,wantSel,ov){
+  var give=cleanSel(giveSel), want=cleanSel(wantSel);
+  if(!Object.keys(give).length && !Object.keys(want).length){ alert("주거나 받을 카드를 하나 이상 정해 주세요."); return; }
+  gameRef().collection("trades").add({
+    from:myIdx, to:toIdx, fromName:game.groups[myIdx].name, toName:game.groups[toIdx].name,
+    give:give, want:want, status:"pending", createdAt:Date.now()
+  }).then(function(){ if(ov&&ov.parentNode) document.body.removeChild(ov); tradeMsg={ok:true,text:"제안을 보냈어요. 상대 모둠의 수락을 기다려요."}; renderGroup(); })
+    .catch(function(){ alert("제안 전송에 실패했어요."); });
+}
+function findTrade(id){ for(var i=0;i<trades.length;i++){ if(trades[i].id===id) return trades[i]; } return null; }
+function acceptTrade(id){
+  var t=findTrade(id); if(!t) return;
+  db.runTransaction(function(tx){
+    var tRef=gameRef().collection("trades").doc(id);
+    return tx.get(gameRef()).then(function(gs){ return tx.get(tRef).then(function(ts){
+      if(!ts.exists||ts.data().status!=="pending") throw new Error("DONE");
+      var data=gs.data(), from=data.groups[t.from], to=data.groups[t.to], k;
+      from.redeemed=from.redeemed||{}; to.redeemed=to.redeemed||{};
+      from.products=from.products||{}; to.products=to.products||{};
+      function owned(gr,k){
+        if(isResourceId(k,data.resources)) return gr.redeemed[k]||0;
+        if(isProductId(k,data.products)) return gr.products[k]||0;
+        return gr.cards[k]||0;
+      }
+      function addOwned(gr,k,n){
+        if(isResourceId(k,data.resources)) gr.redeemed[k]=(gr.redeemed[k]||0)+n;
+        else if(isProductId(k,data.products)) gr.products[k]=(gr.products[k]||0)+n;
+        else gr.cards[k]=(gr.cards[k]||0)+n;
+      }
+      function subOwned(gr,k,n){
+        if(isResourceId(k,data.resources)) gr.redeemed[k]-=n;
+        else if(isProductId(k,data.products)) gr.products[k]-=n;
+        else gr.cards[k]-=n;
+      }
+      for(k in t.give){ if(owned(from,k)<t.give[k]) throw new Error("FROM"); }
+      for(k in t.want){ if(owned(to,k)<t.want[k]) throw new Error("TO"); }
+      for(k in t.give){ subOwned(from,k,t.give[k]); addOwned(to,k,t.give[k]); }
+      for(k in t.want){ subOwned(to,k,t.want[k]); addOwned(from,k,t.want[k]); }
+      tx.update(gameRef(),{groups:data.groups});
+      tx.update(tRef,{status:"accepted"});
+    }); });
+  }).then(function(){ tradeMsg={ok:true,text:t.fromName+" ↔ "+t.toName+" 교환 완료! 카드가 서로 바뀌었어요."}; renderCurrent(); })
+    .catch(function(e){ var m=String(e.message||e);
+      if(m.indexOf("DONE")>=0) tradeMsg={ok:false,text:"이미 처리된 제안이에요."};
+      else if(m.indexOf("FROM")>=0) tradeMsg={ok:false,text:t.fromName+"의 카드가 부족해서 교환할 수 없어요."};
+      else if(m.indexOf("TO")>=0) tradeMsg={ok:false,text:t.toName+"의 카드가 부족해서 교환할 수 없어요."};
+      else tradeMsg={ok:false,text:"교환 중 문제가 생겼어요. 다시 시도해 주세요."};
+      renderCurrent(); });
+}
+function setTradeStatus(id,status){ gameRef().collection("trades").doc(id).update({status:status}).catch(function(){}); }
+function acceptProductRequest(id){
+  var t=findTrade(id); if(!t) return;
+  db.runTransaction(function(tx){
+    var tRef=gameRef().collection("trades").doc(id);
+    return tx.get(gameRef()).then(function(gs){ return tx.get(tRef).then(function(ts){
+      if(!ts.exists||ts.data().status!=="pending") throw new Error("DONE");
+      var data=gs.data(), gg=data.groups[t.from];
+      var products=data.products||defaultProducts(), prod=null;
+      for(var i=0;i<products.length;i++){ if(products[i].id===t.productId){ prod=products[i]; break; } }
+      if(!prod) throw new Error("NOPROD");
+      var needRes=(prod.recipe&&prod.recipe.res)||{}, needProd=(prod.recipe&&prod.recipe.prod)||{};
+      var short=false;
+      gg.redeemed=gg.redeemed||{};
+      for(var rid in needRes){ if(needRes[rid]>(gg.redeemed[rid]||0)) short=true; }
+      var gp=gg.products||{};
+      for(var pid in needProd){ if(needProd[pid]>(gp[pid]||0)) short=true; }
+      if(short) throw new Error("SHORT");
+      for(var rid2 in needRes){ gg.redeemed[rid2]-=needRes[rid2]; }
+      for(var pid2 in needProd){ gp[pid2]-=needProd[pid2]; }
+      gp[t.productId]=(gp[t.productId]||0)+1;
+      gg.products=gp;
+      tx.update(gameRef(),{groups:data.groups});
+      tx.update(tRef,{status:"accepted"});
+    }); });
+  }).then(function(){ renderCurrent(); })
+    .catch(function(e){ var m=String(e.message||e);
+      if(m.indexOf("DONE")>=0) alert("이미 처리된 신청이에요.");
+      else if(m.indexOf("SHORT")>=0) alert("그 모둠에 재료가 부족해서 수락할 수 없어요.");
+      else alert("처리 중 문제가 생겼어요.");
+      renderCurrent(); });
+}
+
+/* ---------------- 시작 ---------------- */
+init();
+</script>
+</body>
+</html>
