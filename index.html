@@ -101,6 +101,8 @@
   .ctl-row{display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end;}
   .field{display:flex;flex-direction:column;gap:5px;}
   .field label{font-size:12.5px;font-weight:700;color:var(--muted);}
+  .diff-weight-row{display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;margin-bottom:18px;}
+  .diff-weight-row .num-in.diffw{width:72px;}
   .divider{width:1px;align-self:stretch;background:var(--line);margin:0 4px;}
   .hint{color:var(--muted);font-size:13px;margin-top:10px;}
 
@@ -283,25 +285,34 @@ function randomUniqueMultProblems(levels,avoidList){
   });
   return list;
 }
-function assignLevels(n){
-  var arr=[]; for(var i=0;i<n;i++) arr.push(DIFF_LEVELS[i%3]);
-  for(var i=arr.length-1;i>0;i--){ var j=Math.floor(Math.random()*(i+1)),t=arr[i]; arr[i]=arr[j]; arr[j]=t; }
+function defaultDiffWeights(){ return {easy:34,medium:33,hard:33}; }
+function pickWeightedLevel(weights){
+  var w=weights||defaultDiffWeights();
+  var e=Math.max(0,Number(w.easy)||0),m=Math.max(0,Number(w.medium)||0),h=Math.max(0,Number(w.hard)||0);
+  var total=e+m+h;
+  if(total<=0) return "medium";
+  var r=Math.random()*total;
+  if(r<e) return "easy";
+  if(r<e+m) return "medium";
+  return "hard";
+}
+function assignLevels(n,weights){
+  var arr=[]; for(var i=0;i<n;i++) arr.push(pickWeightedLevel(weights));
   return arr;
 }
-function nextLevel(level){ return DIFF_LEVELS[(DIFF_LEVELS.indexOf(level)+1+DIFF_LEVELS.length)%DIFF_LEVELS.length]; }
 function defaultResources(){
   var names=["물","밀","모래","목재","과일","목화","철광석","석유"];
   return names.map(function(n,i){ return {id:"r"+(i+1),name:n}; });
 }
-function randomProblemMap(resources){
-  var probs=randomUniqueMultProblems(assignLevels(resources.length)),map={};
+function randomProblemMap(resources,weights){
+  var probs=randomUniqueMultProblems(assignLevels(resources.length,weights)),map={};
   resources.forEach(function(r,i){ map[r.id]=probs[i]; });
   return map;
 }
-function makeGroup(i,resources,products){
+function makeGroup(i,resources,products,diffWeights){
   var res={},red={}; resources.forEach(function(r){ res[r.id]=0; red[r.id]=0; });
   var prod={}; (products||defaultProducts()).forEach(function(p){ prod[p.id]=0; });
-  return {name:(i+1)+"모둠",resources:res,redeemed:red,products:prod,problems:randomProblemMap(resources)};
+  return {name:(i+1)+"모둠",resources:res,redeemed:red,products:prod,problems:randomProblemMap(resources,diffWeights)};
 }
 function defaultProducts(){
   return [
@@ -336,8 +347,9 @@ function defaultScoreCategories(){
 function defaultGameData(groupCount){
   var gc=(groupCount>=1&&groupCount<=12)?groupCount:6;
   var resources=defaultResources(); var products=defaultProducts(); var scoreCategories=defaultScoreCategories();
-  var groups=[]; for(var i=0;i<gc;i++) groups.push(makeGroup(i,resources,products));
-  return {createdAt:Date.now(),groupCount:gc,nextId:resources.length+1,resources:resources,groups:groups,hintsEnabled:false,scoreEnabled:false,scoreEditEnabled:true,scoreCategories:scoreCategories,products:products,retargetMinutes:0,retargetNextAt:null};
+  var diffWeights=defaultDiffWeights();
+  var groups=[]; for(var i=0;i<gc;i++) groups.push(makeGroup(i,resources,products,diffWeights));
+  return {createdAt:Date.now(),groupCount:gc,nextId:resources.length+1,resources:resources,groups:groups,hintsEnabled:false,scoreEnabled:false,scoreEditEnabled:true,scoreCategories:scoreCategories,products:products,diffWeights:diffWeights};
 }
 
 /* ---------------- 전역 상태 ---------------- */
@@ -386,51 +398,6 @@ function init(){
   // 연결 상태 표시용
   db.enableNetwork().then(function(){ connected=true; renderCurrent(); }).catch(function(){});
   restoreSession();
-  setInterval(checkAutoRetarget,10000);
-  setInterval(tickRetargetCountdown,1000);
-}
-/* ---------------- 목표 숫자 주기적 재설정 ---------------- */
-function checkAutoRetarget(){
-  if(role!=="teacher"||!game||!(game.retargetMinutes>0)||!game.retargetNextAt) return;
-  if(Date.now()<game.retargetNextAt) return;
-  db.runTransaction(function(tx){
-    return tx.get(gameRef()).then(function(snap){
-      var data=snap.data();
-      if(!data||!(data.retargetMinutes>0)||!data.retargetNextAt||Date.now()<data.retargetNextAt) return;
-      data.groups.forEach(function(g){ g.problems=randomProblemMap(data.resources); });
-      tx.update(gameRef(),{groups:data.groups,retargetNextAt:Date.now()+data.retargetMinutes*60000});
-    });
-  }).catch(function(){});
-}
-var retargetLastNextAt=undefined, retargetFlashUntil=0;
-function tickRetargetCountdown(){
-  var active=game&&game.retargetMinutes>0&&game.retargetNextAt;
-  if(active){
-    if(retargetLastNextAt!==game.retargetNextAt){ retargetLastNextAt=game.retargetNextAt; retargetFlashUntil=Date.now()+3000; }
-  } else {
-    retargetLastNextAt=undefined; retargetFlashUntil=0;
-  }
-
-  var cd=document.getElementById("retargetCountdown");
-  if(cd&&active){
-    var ms=Math.max(0,game.retargetNextAt-Date.now());
-    var totalSec=Math.floor(ms/1000), mm=Math.floor(totalSec/60), ss=totalSec%60;
-    cd.textContent=mm+"분 "+(ss<10?"0":"")+ss+"초";
-  }
-
-  if(active&&game.retargetNextAt-Date.now()<=0) checkAutoRetarget();
-
-  var alertEl=document.getElementById("retargetAlert");
-  if(!alertEl) return;
-  if(!active){ alertEl.innerHTML=""; return; }
-  var remain=game.retargetNextAt-Date.now();
-  if(remain>0&&remain<=10000){
-    alertEl.innerHTML='<div class="msg bad" style="margin:0 0 12px">⚠ '+Math.ceil(remain/1000)+'초 후 곱셈식이 재설정돼요!</div>';
-  } else if(remain>10000&&Date.now()<retargetFlashUntil){
-    alertEl.innerHTML='<div class="msg ok" style="margin:0 0 12px">'+game.retargetMinutes+'분 뒤 곱셈식이 재설정돼요.</div>';
-  } else {
-    alertEl.innerHTML="";
-  }
 }
 function restoreSession(){
   try{
@@ -607,7 +574,7 @@ function resChipsHTML(resObj){
   return h+'</div>';
 }
 function boardHTML(g){
-  var h='<div class="panel board"><div class="block-label">자원(광물) 곱셈식</div><div id="retargetAlert"></div><div class="board-table">';
+  var h='<div class="panel board"><div class="block-label">자원(광물) 곱셈식</div><div class="board-table">';
   game.resources.forEach(function(r){ var p=(g.problems&&g.problems[r.id])||{a:"?",b:"?"}; h+='<div class="res-cell"><span class="rn">'+esc(r.name)+'</span><span class="rt">'+p.a+' × '+p.b+'</span></div>'; });
   return h+'</div></div>';
 }
@@ -918,6 +885,7 @@ function saveRecipeSettings(){
 
 function settingsPanelHTML(){
   if(!settingsOpen) return '';
+  var diffW=game.diffWeights||defaultDiffWeights();
   var resRows=game.resources.map(function(r){
     return '<div class="res-edit-row" data-id="'+esc(r.id)+'">'+
       '<input class="rname" value="'+esc(r.name)+'" placeholder="자원 이름">'+
@@ -927,21 +895,20 @@ function settingsPanelHTML(){
     '<div class="block-label" style="margin-top:0">힌트 설정</div>'+
     '<button class="btn '+(game.hintsEnabled?"ore":"ghost")+' slim" id="toggleHints">힌트 주기: '+(game.hintsEnabled?"켜짐 (입력한 값을 다시 보여줘요)":"꺼짐 (틀렸다고만 알려줘요)")+'</button>'+
     '<p class="hint">"곱셈식 정답 맞히기"에서 정답이 틀렸을 때 학생에게 입력한 값을 다시 보여줄지 정해요. 누르면 모든 태블릿에 바로 반영돼요.</p>'+
-    '<div class="block-label" style="margin-top:18px">곱셈식 재설정</div>'+
-    '<button class="btn ghost slim" id="randomizeProblems">🎲 모든 모둠 곱셈식 다시 섞기</button>'+
-    '<p class="hint">모둠마다 곱셈식이 서로 다르게 만들어져 있어요. 누르면 모든 모둠의 곱셈식이 각자 새로 무작위 재설정돼요(진행 중인 문제가 모두 바뀌니 주의).</p>'+
+    '<div class="block-label" style="margin-top:18px">곱셈식 랜덤 설정</div>'+
+    '<p class="hint" style="margin-top:0">하/중/상 비율을 정하면 그 비율대로 곱셈식이 무작위로 나와요. 정답을 맞혀 새로 나오는 곱셈식도 같은 비율을 따라요. (예: 하를 100으로 하면 쉬운 문제만 계속 나와요. 꼭 합계 100이 아니어도 서로 비율만 맞으면 돼요.)</p>'+
+    '<div class="diff-weight-row">'+
+      '<div class="field"><label>하</label><input class="num-in diffw" id="diffEasy" type="number" min="0" value="'+diffW.easy+'" inputmode="numeric"></div>'+
+      '<div class="field"><label>중</label><input class="num-in diffw" id="diffMedium" type="number" min="0" value="'+diffW.medium+'" inputmode="numeric"></div>'+
+      '<div class="field"><label>상</label><input class="num-in diffw" id="diffHard" type="number" min="0" value="'+diffW.hard+'" inputmode="numeric"></div>'+
+      '<button class="btn ghost slim" id="applyDiffWeights">적용</button>'+
+    '</div>'+
     '<div class="settings-grid">'+
     '<div><div class="block-label">자원 목록 편집</div>'+
       '<div id="resEditor">'+resRows+'</div>'+
       '<div style="display:flex;gap:6px;flex-wrap:nowrap;align-items:center;margin-top:6px;overflow-x:auto;padding-bottom:2px">'+
         '<button class="btn ghost slim" style="flex:none;white-space:nowrap" id="addRes">＋ 자원 추가</button>'+
-        '<div class="divider" style="flex:none"></div>'+
-        '<span class="hint" style="margin:0;flex:none;white-space:nowrap">주기적 재설정</span>'+
-        '<input class="num-in" id="retargetMinutes" type="number" min="1" value="'+(game.retargetMinutes>0?game.retargetMinutes:10)+'" inputmode="numeric" style="width:52px;flex:none;padding:6px">'+
-        '<span class="hint" style="margin:0;flex:none;white-space:nowrap">분마다</span>'+
-        '<button class="btn '+(game.retargetMinutes>0?"ore":"ghost")+' slim" style="flex:none;white-space:nowrap" id="toggleRetarget">'+(game.retargetMinutes>0?"끄기":"켜기")+'</button>'+
       '</div>'+
-      (game.retargetMinutes>0?'<p class="hint">'+game.retargetMinutes+'분마다 모든 모둠의 곱셈식을 각자 자동으로 재설정하고 저장해요(교사 화면이 열려 있어야 해요). 다음 재설정까지: <span id="retargetCountdown">계산 중…</span></p>':'')+
       '</div>'+
     '<div><div class="block-label">모둠 수</div><div class="ctl-row" style="margin-bottom:20px"><input class="num-in" id="setGroupCount" type="number" min="1" max="12" value="'+game.groupCount+'" inputmode="numeric"><span class="hint" style="margin:0;align-self:center">1 ~ 12개</span></div></div>'+
     '</div><div class="warn" id="settingsWarn"></div>'+
@@ -951,31 +918,17 @@ function wireSettings(){
   $("toggleHints").onclick=function(){
     gameRef().update({hintsEnabled:!game.hintsEnabled}).catch(function(){ alert("힌트 설정 변경에 실패했어요."); });
   };
+  $("applyDiffWeights").onclick=function(){
+    var e=Number($("diffEasy").value)||0, m=Number($("diffMedium").value)||0, h=Number($("diffHard").value)||0;
+    if(e<0||m<0||h<0||e+m+h<=0){ alert("하/중/상 중 최소 하나는 0보다 커야 해요."); return; }
+    gameRef().update({diffWeights:{easy:e,medium:m,hard:h}}).catch(function(){ alert("곱셈식 랜덤 설정 저장에 실패했어요."); });
+  };
   Array.prototype.forEach.call($("resEditor").querySelectorAll(".del"),function(b){ b.onclick=function(){ b.closest(".res-edit-row").remove(); }; });
   $("addRes").onclick=function(){
     var div=document.createElement("div"); div.className="res-edit-row"; div.dataset.id="new"+Date.now()+Math.floor(Math.random()*1000);
     div.innerHTML='<input class="rname" placeholder="자원 이름"><button class="del" type="button">×</button>';
     div.querySelector(".del").onclick=function(){ div.remove(); };
     $("resEditor").appendChild(div);
-  };
-  $("randomizeProblems").onclick=function(){
-    if(!confirm("모든 모둠의 곱셈식을 새로 섞을까요? 진행 중인 곱셈식이 모두 바뀌어요.")) return;
-    db.runTransaction(function(tx){
-      return tx.get(gameRef()).then(function(snap){
-        var data=snap.data();
-        data.groups.forEach(function(g){ g.problems=randomProblemMap(data.resources); });
-        tx.update(gameRef(),{groups:data.groups});
-      });
-    }).catch(function(){ alert("곱셈식 재설정에 실패했어요."); });
-  };
-  $("toggleRetarget").onclick=function(){
-    if(game.retargetMinutes>0){
-      gameRef().update({retargetMinutes:0,retargetNextAt:null}).catch(function(){ alert("주기적 재설정 변경에 실패했어요."); });
-      return;
-    }
-    var n=Math.floor(Number($("retargetMinutes").value));
-    if(!(n>=1)) return alert("분은 1 이상으로 입력해 주세요.");
-    gameRef().update({retargetMinutes:n,retargetNextAt:Date.now()+n*60000}).catch(function(){ alert("주기적 재설정 변경에 실패했어요."); });
   };
   $("cancelSettings").onclick=function(){ settingsOpen=false; renderTeacher(); };
   $("saveSettings").onclick=saveSettings;
@@ -999,13 +952,14 @@ function saveSettings(){
   db.runTransaction(function(tx){
     return tx.get(gameRef()).then(function(snap){
       var data=snap.data();
+      var diffW=data.diffWeights||defaultDiffWeights();
       if(gc<data.groups.length){ if(!confirm("모둠 수를 "+data.groups.length+"→"+gc+"로 줄이면 마지막 모둠들의 자원이 삭제돼요. 진행할까요?")) throw new Error("CANCEL"); data.groups.length=gc; }
-      else { while(data.groups.length<gc) data.groups.push(makeGroup(data.groups.length,newRes,data.products||defaultProducts())); }
+      else { while(data.groups.length<gc) data.groups.push(makeGroup(data.groups.length,newRes,data.products||defaultProducts(),diffW)); }
       data.groups.forEach(function(g){
         var res={},red={}; newRes.forEach(function(r){ res[r.id]=g.resources[r.id]||0; red[r.id]=(g.redeemed&&g.redeemed[r.id])||0; }); g.resources=res; g.redeemed=red;
         var oldProblems=g.problems||{}, newProblems={}, missing=[];
         newRes.forEach(function(r){ if(oldProblems[r.id]) newProblems[r.id]=oldProblems[r.id]; else missing.push(r); });
-        if(missing.length){ var fresh=randomUniqueMultProblems(assignLevels(missing.length),Object.keys(newProblems).map(function(k){return newProblems[k];})); missing.forEach(function(r,i){ newProblems[r.id]=fresh[i]; }); }
+        if(missing.length){ var fresh=randomUniqueMultProblems(assignLevels(missing.length,diffW),Object.keys(newProblems).map(function(k){return newProblems[k];})); missing.forEach(function(r,i){ newProblems[r.id]=fresh[i]; }); }
         g.problems=newProblems;
       });
       data.resources=newRes; data.groupCount=gc; data.nextId=counter;
@@ -1230,8 +1184,8 @@ function doGenerate(){
       gg.resources[match.id]=(gg.resources[match.id]||0)+1;
       gg.problems=gg.problems||{};
       var others=[]; for(var rid in gg.problems){ if(rid!==match.id) others.push(gg.problems[rid]); }
-      var solvedLevel=(gg.problems[match.id]&&gg.problems[match.id].level)||"easy";
-      gg.problems[match.id]=randomUniqueMultProblems([nextLevel(solvedLevel)],others)[0];
+      var nextL=pickWeightedLevel(data.diffWeights);
+      gg.problems[match.id]=randomUniqueMultProblems([nextL],others)[0];
       tx.update(gameRef(),{groups:data.groups});
     });
   }).then(function(){ answerInput=""; groupMsg={ok:true,text:"정답! "+match.name+" 1개를 만들었어요. 새로운 곱셈식이 나왔어요."}; renderGroup(); })
