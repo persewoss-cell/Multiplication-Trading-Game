@@ -93,7 +93,7 @@
   .panel{background:var(--panel);border:1.5px solid var(--line);border-radius:16px;padding:18px;margin-bottom:18px;box-shadow:0 3px 12px rgba(28,38,50,.05);}
   .panel.admin{border:2px solid var(--admin);}
 
-  .board-table{display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:8px;}
+  .board-table{display:grid;grid-template-columns:repeat(auto-fit,minmax(96px,1fr));gap:8px;}
   .res-cell{background:var(--ore-soft);border:1.5px solid var(--ore-line);border-radius:12px;padding:10px 6px;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;}
   .res-cell .rn{font-weight:800;font-size:13px;color:#5f3c0c;display:block;}
   .res-cell .rt{font-family:var(--mono);font-size:17px;font-weight:700;color:var(--ore);white-space:nowrap;}
@@ -335,6 +335,7 @@ var answerInput="", groupMsg=null, tradeMsg=null, productMsg=null, settingsOpen=
 var scratchStrokes=[], scratchRedo=[], scratchDrawing=false, scratchCurrent=null, scratchMode="pen";
 var ERASE_WIDTH=20;
 var ERASER_ICON='<svg viewBox="0 0 24 24" width="17" height="17" style="vertical-align:middle"><g transform="rotate(-40 12 12)"><rect x="4" y="8" width="16" height="8" rx="2.5" fill="#f6a9c1" stroke="#a8455f" stroke-width="1.1"/><rect x="4" y="8" width="6.5" height="8" rx="2.5" fill="#fff" stroke="#a8455f" stroke-width="1.1"/></g></svg>';
+var PENCIL_ICON='<svg viewBox="0 0 24 24" width="17" height="17" style="vertical-align:middle"><g transform="rotate(-40 12 12)"><rect x="3" y="10" width="3" height="4" rx="1" fill="#f2b6ab" stroke="#8a5a3a" stroke-width="1"/><rect x="6" y="10" width="11" height="4" fill="#f7c948" stroke="#8a5a3a" stroke-width="1"/><polygon points="17,10 21,12 17,14" fill="#8a5a3a"/></g></svg>';
 function eraserCursorCSS(){
   var size=ERASE_WIDTH+6, c=size/2, r=ERASE_WIDTH/2;
   var svg='<svg xmlns="http://www.w3.org/2000/svg" width="'+size+'" height="'+size+'"><circle cx="'+c+'" cy="'+c+'" r="'+r+'" fill="rgba(255,255,255,.45)" stroke="#1c2632" stroke-width="1.4"/></svg>';
@@ -1037,6 +1038,7 @@ function renderGroup(){
   // 필기 연습장
   h+='<div class="panel scratch-panel"><div class="row-label-tools"><span class="block-label" style="margin:0">계산 연습장</span>'+
      '<div class="scratch-tools">'+
+       '<button type="button" class="stool" id="scPencil" title="연필">'+PENCIL_ICON+'</button>'+
        '<button type="button" class="stool" id="scUndo" title="실행 취소">↩</button>'+
        '<button type="button" class="stool" id="scRedo" title="다시 실행">↪</button>'+
        '<button type="button" class="stool" id="scErase" title="지우개">'+ERASER_ICON+'</button>'+
@@ -1176,19 +1178,21 @@ function setupScratchCanvas(){
   canvas.onpointercancel=endStroke;
   canvas.onpointerleave=function(){ if(scratchDrawing) endStroke(); };
 
+  function applyMode(){
+    canvas.style.cursor=scratchMode==="erase"?eraserCursorCSS():"";
+    $("scPencil").classList.toggle("active",scratchMode!=="erase");
+    $("scErase").classList.toggle("active",scratchMode==="erase");
+  }
+
   loadScratch();
   resize();
   canvas._scratchResize=resize;
-  canvas.style.cursor=scratchMode==="erase"?eraserCursorCSS():"";
-  $("scErase").classList.toggle("active",scratchMode==="erase");
+  applyMode();
 
+  $("scPencil").onclick=function(){ scratchMode="pen"; applyMode(); };
   $("scUndo").onclick=function(){ if(!scratchStrokes.length) return; scratchRedo.push(scratchStrokes.pop()); saveScratch(); redraw(); };
   $("scRedo").onclick=function(){ if(!scratchRedo.length) return; scratchStrokes.push(scratchRedo.pop()); saveScratch(); redraw(); };
-  $("scErase").onclick=function(){
-    scratchMode=scratchMode==="erase"?"pen":"erase";
-    $("scErase").classList.toggle("active",scratchMode==="erase");
-    canvas.style.cursor=scratchMode==="erase"?eraserCursorCSS():"";
-  };
+  $("scErase").onclick=function(){ scratchMode="erase"; applyMode(); };
   $("scClear").onclick=function(){ if(!scratchStrokes.length) return; scratchStrokes=[]; scratchRedo=[]; saveScratch(); redraw(); };
 }
 
