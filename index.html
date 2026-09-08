@@ -1117,9 +1117,18 @@ function setupScratchCanvas(){
     s.pts.forEach(function(p,i){ if(i===0) ctx.moveTo(p[0],p[1]); else ctx.lineTo(p[0],p[1]); });
     ctx.stroke();
   }
+  function drawGrid(){
+    var rect=canvas.getBoundingClientRect(), w=rect.width, h=rect.height, cols=7, rows=5, i;
+    ctx.save();
+    ctx.strokeStyle="#d3dae4"; ctx.lineWidth=1; ctx.setLineDash([4,4]);
+    for(i=1;i<cols;i++){ var x=Math.round(w*i/cols)+0.5; ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,h); ctx.stroke(); }
+    for(i=1;i<rows;i++){ var y=Math.round(h*i/rows)+0.5; ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(w,y); ctx.stroke(); }
+    ctx.restore();
+  }
   function redraw(){
     var rect=canvas.getBoundingClientRect();
     ctx.clearRect(0,0,rect.width,rect.height);
+    drawGrid();
     scratchStrokes.forEach(drawStroke);
   }
   function resize(){
