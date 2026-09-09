@@ -115,8 +115,8 @@
   .res-edit-row{display:flex;gap:8px;align-items:center;margin-bottom:8px;}
   .res-edit-row input.rname{flex:1;min-width:0;font-size:16px;padding:9px 11px;border:1.5px solid var(--line);border-radius:9px;}
   .res-edit-row .del{background:var(--err-soft);color:var(--err);border:none;border-radius:9px;width:40px;height:40px;font-size:18px;font-weight:800;flex:none;}
-  .weights-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(64px,1fr));gap:9px;}
-  .wcell{display:flex;flex-direction:column;align-items:center;gap:5px;background:#f7f9fc;border:1.5px solid var(--line);border-radius:10px;padding:7px 4px;}
+  .weights-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:9px;max-width:420px;}
+  .wcell{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;aspect-ratio:1/1;background:#f7f9fc;border:1.5px solid var(--line);border-radius:10px;padding:7px 4px;}
   .wcell .wg{font-family:var(--mono);font-size:21px;font-weight:800;color:var(--num);}
   .wcell input{width:100%;text-align:center;font-family:var(--mono);font-weight:700;font-size:15px;padding:6px 2px;border:1.5px solid var(--line);border-radius:7px;}
   .save-row{display:flex;gap:10px;margin-top:16px;flex-wrap:wrap;}
@@ -201,6 +201,12 @@
   /* ---- group play ---- */
   .formula-in{width:100%;font-family:var(--mono);font-size:24px;font-weight:700;text-align:center;padding:12px;border:2px solid var(--line);border-radius:12px;letter-spacing:.06em;color:var(--ink);}
   .formula-in:focus{outline:none;border-color:var(--num);}
+  .keypad{display:grid;grid-template-columns:repeat(5,1fr);gap:6px;margin-top:9px;}
+  .key{position:relative;border:1.5px solid var(--line);background:#fff;border-radius:9px;padding:9px 0;font-family:var(--mono);font-size:19px;font-weight:800;min-height:44px;color:var(--num);}
+  .key.act{font-family:var(--sans);font-size:15px;font-weight:700;color:var(--muted);}
+  .key.clearall{grid-column:span 4;font-family:var(--sans);font-size:17px;font-weight:800;color:var(--err);background:var(--err-soft);border-color:var(--err-soft);min-height:52px;}
+  .key.num-key.zero{opacity:.45;}
+  .key .cnt{position:absolute;top:-6px;right:-6px;min-width:18px;height:18px;padding:0 4px;background:var(--ink);color:#fff;border-radius:999px;font-family:var(--sans);font-size:11px;font-weight:800;display:flex;align-items:center;justify-content:center;}
   .gen-btn{margin-top:10px;width:100%;background:var(--ore);color:#fff;border:none;border-radius:12px;padding:14px;font-size:18px;font-weight:800;min-height:54px;}
   .msg{margin-top:10px;padding:10px 12px;border-radius:10px;font-size:14px;font-weight:600;line-height:1.5;}
   .msg.ok{background:var(--ok-soft);color:var(--ok);} .msg.bad{background:var(--err-soft);color:var(--err);}
@@ -1092,10 +1098,16 @@ function renderGroup(){
      '</div>';
 
   // 곱셈식 정답 맞히기 + 자원 + 실물 카드 교환 + 생산품 카드 생성
-  h+='<div class="panel"><div class="block-label">우리 모둠 숫자 카드</div>'+cardsGridHTML(g.cards)+
-     '<div class="block-label" style="margin-top:16px">곱셈식 정답 맞히기</div>'+
+  h+='<div class="panel"><div class="block-label">곱셈식 정답 맞히기</div>'+
      '<p class="hint" style="margin-top:0">위 자원(광물)의 곱셈식 중 하나를 계산해서 정답을 입력하세요. 정답이 어떤 자원의 곱셈식 답과 정확히 같으면 그 자원이 만들어지고, 그 자원의 곱셈식은 새 문제로 바뀌어요.</p>'+
-     '<input class="formula-in" id="ansIn" type="number" inputmode="numeric" placeholder="정답 입력" value="'+esc(answerInput)+'">'+
+     '<input class="formula-in" id="ansIn" type="text" inputmode="none" readonly placeholder="정답 입력" value="'+esc(answerInput)+'">'+
+     '<div class="keypad" id="ansKeypad">'+
+       '<button type="button" class="key clearall" id="kpClear">모두지우기</button>'+
+       '<button type="button" class="key act" id="kpBack">⌫</button>'+
+       NUMS.map(function(k){ var n=(g.cards&&g.cards[k])||0;
+         return '<button type="button" class="key num-key'+(n===0?" zero":"")+'" data-digit="'+k+'">'+k+'<span class="cnt">'+n+'</span></button>';
+       }).join("")+
+     '</div>'+
      '<button class="gen-btn" id="genBtn">자원 생성</button>'+
      (groupMsg?'<div class="msg '+(groupMsg.ok?"ok":"bad")+'">'+esc(groupMsg.text)+'</div>':'')+
      '<p class="mini-label" style="margin-top:16px">생성한 자원</p>'+resChipsHTML(g.resources)+
@@ -1169,6 +1181,11 @@ function renderGroup(){
     aIn.focus();
     try{ if(ansSelStart!=null) aIn.setSelectionRange(ansSelStart,ansSelEnd); }catch(e){}
   }
+  $("kpClear").onclick=function(){ answerInput=""; aIn.value=""; };
+  $("kpBack").onclick=function(){ answerInput=aIn.value.slice(0,-1); aIn.value=answerInput; };
+  Array.prototype.forEach.call(s.querySelectorAll("[data-digit]"),function(b){
+    b.onclick=function(){ answerInput=aIn.value+b.getAttribute("data-digit"); aIn.value=answerInput; };
+  });
   setupScratchCanvas();
 
   $("genBtn").onclick=doGenerate;
